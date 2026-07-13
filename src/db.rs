@@ -34,24 +34,25 @@ impl Database {
 
     // --- Users ---
 
-    /// Creates a new user with the given `username`.
+    /// Creates a new user with the given `username` and `token`.
     ///
     /// Returns the created [`User`] with its assigned `id` and `created_at`.
     /// Fails if `username` already exists (UNIQUE constraint).
-    pub fn create_user(&self, username: &str) -> Result<User> {
+    pub fn create_user(&self, username: &str, token: &str) -> Result<User> {
         self.conn.execute(
-            "INSERT INTO users (username) VALUES (?1)",
-            params![username],
+            "INSERT INTO users (username, token) VALUES (?1, ?2)",
+            params![username, token],
         )?;
         let id = self.conn.last_insert_rowid();
         let user = self.conn.query_row(
-            "SELECT id, username, created_at FROM users WHERE id = ?1",
+            "SELECT id, username, token, created_at FROM users WHERE id = ?1",
             params![id],
             |row| {
                 Ok(User {
                     id: row.get(0)?,
                     username: row.get(1)?,
-                    created_at: row.get(2)?,
+                    token: row.get(2)?,
+                    created_at: row.get(3)?,
                 })
             },
         )?;
@@ -64,12 +65,13 @@ impl Database {
     pub fn find_user_by_username(&self, username: &str) -> Result<Option<User>> {
         let mut stmt = self
             .conn
-            .prepare("SELECT id, username, created_at FROM users WHERE username = ?1")?;
+            .prepare("SELECT id, username, token, created_at FROM users WHERE username = ?1")?;
         let mut rows = stmt.query_map(params![username], |row| {
             Ok(User {
                 id: row.get(0)?,
                 username: row.get(1)?,
-                created_at: row.get(2)?,
+                token: row.get(2)?,
+                created_at: row.get(3)?,
             })
         })?;
         match rows.next() {
@@ -82,12 +84,34 @@ impl Database {
     pub fn find_user_by_id(&self, id: i64) -> Result<Option<User>> {
         let mut stmt = self
             .conn
-            .prepare("SELECT id, username, created_at FROM users WHERE id = ?1")?;
+            .prepare("SELECT id, username, token, created_at FROM users WHERE id = ?1")?;
         let mut rows = stmt.query_map(params![id], |row| {
             Ok(User {
                 id: row.get(0)?,
                 username: row.get(1)?,
-                created_at: row.get(2)?,
+                token: row.get(2)?,
+                created_at: row.get(3)?,
+            })
+        })?;
+        match rows.next() {
+            Some(row) => Ok(Some(row?)),
+            None => Ok(None),
+        }
+    }
+
+    /// Finds a user by their HTTP authentication token.
+    ///
+    /// Used by the HTTP server to identify the connecting user.
+    pub fn find_user_by_token(&self, token: &str) -> Result<Option<User>> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT id, username, token, created_at FROM users WHERE token = ?1")?;
+        let mut rows = stmt.query_map(params![token], |row| {
+            Ok(User {
+                id: row.get(0)?,
+                username: row.get(1)?,
+                token: row.get(2)?,
+                created_at: row.get(3)?,
             })
         })?;
         match rows.next() {
@@ -102,7 +126,7 @@ impl Database {
     /// fingerprint passed via `authorized_keys`.
     pub fn find_user_by_fingerprint(&self, fingerprint: &str) -> Result<Option<User>> {
         let mut stmt = self.conn.prepare(
-            "SELECT u.id, u.username, u.created_at FROM users u
+            "SELECT u.id, u.username, u.token, u.created_at FROM users u
              JOIN ssh_keys k ON k.user_id = u.id
              WHERE k.fingerprint = ?1",
         )?;
@@ -110,7 +134,8 @@ impl Database {
             Ok(User {
                 id: row.get(0)?,
                 username: row.get(1)?,
-                created_at: row.get(2)?,
+                token: row.get(2)?,
+                created_at: row.get(3)?,
             })
         })?;
         match rows.next() {
@@ -123,15 +148,25 @@ impl Database {
     pub fn list_users(&self) -> Result<Vec<User>> {
         let mut stmt = self
             .conn
-            .prepare("SELECT id, username, created_at FROM users ORDER BY username")?;
+            .prepare("SELECT id, username, token, created_at FROM users ORDER BY username")?;
         let rows = stmt.query_map([], |row| {
             Ok(User {
                 id: row.get(0)?,
                 username: row.get(1)?,
-                created_at: row.get(2)?,
+                token: row.get(2)?,
+                created_at: row.get(3)?,
             })
         })?;
         Ok(rows.collect::<Result<Vec<_>, _>>()?)
+    }
+
+    /// Updates a user's token. Returns `true` if the user was found.
+    pub fn set_user_token(&self, username: &str, token: &str) -> Result<bool> {
+        let n = self.conn.execute(
+            "UPDATE users SET token = ?1 WHERE username = ?2",
+            params![token, username],
+        )?;
+        Ok(n > 0)
     }
 
     /// Deletes a user by username. Returns `true` if a row was removed.

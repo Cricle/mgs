@@ -6,6 +6,7 @@ use std::path::Path;
 
 use super::open_db;
 use crate::auth::{compute_fingerprint, parse_ssh_public_key};
+use crate::generate_token;
 use crate::git::validate_username;
 
 /// Reads an SSH public key file and returns `(key_type, public_key, fingerprint)`.
@@ -20,7 +21,7 @@ fn read_ssh_key(key_path: &Path) -> Result<(String, String, String)> {
 /// Creates a new user with an SSH public key.
 ///
 /// Validates the username, reads and parses the key file, computes its fingerprint,
-/// then inserts both the user and key into the database.
+/// then inserts both the user and key into the database. Generates an HTTP token.
 pub fn run_user_add(data_dir: &Path, username: &str, key_path: &Path) -> Result<()> {
     validate_username(username)?;
     let db = open_db(data_dir)?;
@@ -30,14 +31,16 @@ pub fn run_user_add(data_dir: &Path, username: &str, key_path: &Path) -> Result<
     }
 
     let (key_type, public_key, fingerprint) = read_ssh_key(key_path)?;
+    let token = generate_token();
 
-    let user = db.create_user(username)?;
+    let user = db.create_user(username, &token)?;
     db.add_ssh_key(user.id, &key_type, &public_key, &fingerprint)?;
 
     println!(
         "Created user '{}' with key fingerprint {}",
         username, fingerprint
     );
+    println!("HTTP token: {}", token);
     Ok(())
 }
 
@@ -107,5 +110,32 @@ pub fn run_key_remove(data_dir: &Path, fingerprint: &str) -> Result<()> {
     } else {
         println!("Key {} not found", fingerprint);
     }
+    Ok(())
+}
+
+/// Shows the HTTP authentication token for a user.
+pub fn run_token_show(data_dir: &Path, username: &str) -> Result<()> {
+    let db = open_db(data_dir)?;
+    let user = db
+        .find_user_by_username(username)?
+        .with_context(|| format!("user '{}' not found", username))?;
+
+    match &user.token {
+        Some(token) => println!("{}", token),
+        None => println!("No token for user '{}'", username),
+    }
+    Ok(())
+}
+
+/// Regenerates the HTTP authentication token for a user.
+pub fn run_token_regenerate(data_dir: &Path, username: &str) -> Result<()> {
+    let db = open_db(data_dir)?;
+    let user = db
+        .find_user_by_username(username)?
+        .with_context(|| format!("user '{}' not found", username))?;
+
+    let new_token = generate_token();
+    db.set_user_token(username, &new_token)?;
+    println!("New token for '{}': {}", user.username, new_token);
     Ok(())
 }

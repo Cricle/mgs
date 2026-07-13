@@ -1,12 +1,14 @@
 //! Data models for MGS entities.
 
-/// A registered user who can access repositories via SSH.
+/// A registered user who can access repositories via SSH or HTTP.
 #[derive(Debug, Clone)]
 pub struct User {
     /// Unique identifier.
     pub id: i64,
     /// Login name (alphanumeric, `_`, `-` only).
     pub username: String,
+    /// HTTP authentication token (hex-encoded, 64 chars). Nullable for legacy users.
+    pub token: Option<String>,
     /// ISO 8601 creation timestamp.
     pub created_at: String,
 }

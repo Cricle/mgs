@@ -3,6 +3,7 @@
 
 mod clone;
 mod file;
+mod http;
 mod key;
 mod pull;
 mod push;

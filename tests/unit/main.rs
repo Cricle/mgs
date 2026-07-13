@@ -3,4 +3,5 @@
 mod auth;
 mod db;
 mod git;
+mod http;
 mod ssh;

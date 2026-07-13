@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
-use mgs::cli::{Cli, Command, KeyCommand, RepoCommand, UserCommand};
+use mgs::cli::{Cli, Command, KeyCommand, RepoCommand, TokenCommand, UserCommand};
 use mgs::cli::{repo, user};
 
 fn main() {
@@ -24,6 +24,12 @@ fn run() -> Result<()> {
                 KeyCommand::List { username } => user::run_key_list(&data_dir, &username),
                 KeyCommand::Remove { fingerprint } => user::run_key_remove(&data_dir, &fingerprint),
             },
+            UserCommand::Token { command } => match command {
+                TokenCommand::Show { username } => user::run_token_show(&data_dir, &username),
+                TokenCommand::Regenerate { username } => {
+                    user::run_token_regenerate(&data_dir, &username)
+                }
+            },
         },
         Command::Repo { command } => match command {
             RepoCommand::Create { name, owner } => {
@@ -32,5 +38,9 @@ fn run() -> Result<()> {
             RepoCommand::List => repo::run_repo_list(&data_dir),
             RepoCommand::Remove { name } => repo::run_repo_remove(&data_dir, &name),
         },
+        Command::Serve { bind } => {
+            let rt = tokio::runtime::Runtime::new()?;
+            rt.block_on(mgs::http::serve(data_dir, &bind))
+        }
     }
 }

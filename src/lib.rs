@@ -23,5 +23,14 @@ pub mod auth;
 pub mod cli;
 pub mod db;
 pub mod git;
+pub mod http;
 pub mod models;
 pub mod ssh;
+
+/// Generates a random 32-byte hex token (64 characters).
+pub fn generate_token() -> String {
+    use rand::Rng;
+    let mut rng = rand::rng();
+    let bytes: [u8; 32] = rng.random();
+    bytes.iter().map(|b| format!("{:02x}", b)).collect()
+}

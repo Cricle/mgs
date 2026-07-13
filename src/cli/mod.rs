@@ -48,6 +48,12 @@ pub enum Command {
         #[command(subcommand)]
         command: RepoCommand,
     },
+    /// Start HTTP server for Git Smart HTTP protocol
+    Serve {
+        /// Address to bind (default: 0.0.0.0:8080)
+        #[arg(long, default_value = "0.0.0.0:8080")]
+        bind: String,
+    },
 }
 
 /// User management subcommands.
@@ -69,6 +75,20 @@ pub enum UserCommand {
         #[command(subcommand)]
         command: KeyCommand,
     },
+    /// Manage user authentication tokens
+    Token {
+        #[command(subcommand)]
+        command: TokenCommand,
+    },
+}
+
+/// Token management subcommands (nested under `user`).
+#[derive(Subcommand)]
+pub enum TokenCommand {
+    /// Show a user's token
+    Show { username: String },
+    /// Regenerate a user's token
+    Regenerate { username: String },
 }
 
 /// SSH key management subcommands (nested under `user`).
