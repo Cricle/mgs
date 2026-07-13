@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use std::process::Command;
 
 use crate::db::Database;
@@ -20,7 +20,10 @@ pub fn parse_ssh_public_key(line: &str) -> Result<(String, String)> {
 
     // Validate key type
     match key_type.as_str() {
-        "ssh-ed25519" | "ssh-rsa" | "ecdsa-sha2-nistp256" | "ecdsa-sha2-nistp384"
+        "ssh-ed25519"
+        | "ssh-rsa"
+        | "ecdsa-sha2-nistp256"
+        | "ecdsa-sha2-nistp384"
         | "ecdsa-sha2-nistp521" => {}
         _ => bail!("unsupported key type: {}", key_type),
     }
@@ -44,7 +47,10 @@ pub fn compute_fingerprint(public_key_line: &str) -> Result<String> {
         .context("failed to spawn ssh-keygen")?;
 
     use std::io::Write;
-    let mut stdin = child.stdin.take().context("failed to open ssh-keygen stdin")?;
+    let mut stdin = child
+        .stdin
+        .take()
+        .context("failed to open ssh-keygen stdin")?;
     let data = public_key_line.to_owned();
     // Write stdin in a separate thread to avoid potential deadlock
     let handle = std::thread::spawn(move || {
@@ -124,7 +130,12 @@ mod tests {
 
     #[test]
     fn test_parse_no_comment() {
-        assert!(parse_ssh_public_key("ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl").is_ok());
+        assert!(
+            parse_ssh_public_key(
+                "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl"
+            )
+            .is_ok()
+        );
     }
 
     #[test]

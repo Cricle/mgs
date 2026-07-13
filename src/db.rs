@@ -21,8 +21,10 @@ impl Database {
     // --- Users ---
 
     pub fn create_user(&self, username: &str) -> Result<User> {
-        self.conn
-            .execute("INSERT INTO users (username) VALUES (?1)", params![username])?;
+        self.conn.execute(
+            "INSERT INTO users (username) VALUES (?1)",
+            params![username],
+        )?;
         let id = self.conn.last_insert_rowid();
         let user = self.conn.query_row(
             "SELECT id, username, created_at FROM users WHERE id = ?1",
@@ -39,9 +41,9 @@ impl Database {
     }
 
     pub fn find_user_by_username(&self, username: &str) -> Result<Option<User>> {
-        let mut stmt = self.conn.prepare(
-            "SELECT id, username, created_at FROM users WHERE username = ?1",
-        )?;
+        let mut stmt = self
+            .conn
+            .prepare("SELECT id, username, created_at FROM users WHERE username = ?1")?;
         let mut rows = stmt.query_map(params![username], |row| {
             Ok(User {
                 id: row.get(0)?,
@@ -56,9 +58,9 @@ impl Database {
     }
 
     pub fn find_user_by_id(&self, id: i64) -> Result<Option<User>> {
-        let mut stmt = self.conn.prepare(
-            "SELECT id, username, created_at FROM users WHERE id = ?1",
-        )?;
+        let mut stmt = self
+            .conn
+            .prepare("SELECT id, username, created_at FROM users WHERE id = ?1")?;
         let mut rows = stmt.query_map(params![id], |row| {
             Ok(User {
                 id: row.get(0)?,
@@ -193,9 +195,9 @@ impl Database {
     }
 
     pub fn find_repo(&self, name: &str) -> Result<Option<Repository>> {
-        let mut stmt = self.conn.prepare(
-            "SELECT id, name, owner_id, created_at FROM repositories WHERE name = ?1",
-        )?;
+        let mut stmt = self
+            .conn
+            .prepare("SELECT id, name, owner_id, created_at FROM repositories WHERE name = ?1")?;
         let mut rows = stmt.query_map(params![name], |row| {
             Ok(Repository {
                 id: row.get(0)?,
@@ -255,11 +257,14 @@ impl Database {
     /// Returns None if user has no access (and is not owner).
     pub fn get_permission(&self, user_id: i64, repo_id: i64) -> Result<Option<PermLevel>> {
         // Check if owner first
-        let is_owner = self.conn.query_row(
-            "SELECT 1 FROM repositories WHERE id = ?1 AND owner_id = ?2",
-            params![repo_id, user_id],
-            |_| Ok(true),
-        ).unwrap_or(false);
+        let is_owner = self
+            .conn
+            .query_row(
+                "SELECT 1 FROM repositories WHERE id = ?1 AND owner_id = ?2",
+                params![repo_id, user_id],
+                |_| Ok(true),
+            )
+            .unwrap_or(false);
 
         if is_owner {
             return Ok(Some(PermLevel::Admin));
@@ -273,7 +278,7 @@ impl Database {
             Ok(level_str)
         })?;
         match rows.next() {
-            Some(row) => Ok(Some(PermLevel::from_str(&row?)?)),
+            Some(row) => Ok(Some(PermLevel::parse(&row?)?)),
             None => Ok(None),
         }
     }
@@ -296,7 +301,7 @@ impl Database {
         let mut result = Vec::new();
         for row in rows {
             let (user, level_str) = row?;
-            let level = PermLevel::from_str(&level_str)?;
+            let level = PermLevel::parse(&level_str)?;
             result.push((user, level));
         }
         Ok(result)

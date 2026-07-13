@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::Parser;
-use mgs::cli::{Cli, Command, UserCommand, RepoCommand, AclCommand, KeyCommand};
-use mgs::cli::{init, user, repo, acl};
+use mgs::cli::{AclCommand, Cli, Command, KeyCommand, RepoCommand, UserCommand};
+use mgs::cli::{acl, init, repo, user};
 
 fn main() {
     if let Err(e) = run() {
@@ -21,17 +21,15 @@ fn run() -> Result<()> {
             UserCommand::List => user::run_user_list(&data_dir),
             UserCommand::Remove { username } => user::run_user_remove(&data_dir, &username),
             UserCommand::Key { command } => match command {
-                KeyCommand::Add { username, key } => {
-                    user::run_key_add(&data_dir, &username, &key)
-                }
+                KeyCommand::Add { username, key } => user::run_key_add(&data_dir, &username, &key),
                 KeyCommand::List { username } => user::run_key_list(&data_dir, &username),
-                KeyCommand::Remove { fingerprint } => {
-                    user::run_key_remove(&data_dir, &fingerprint)
-                }
+                KeyCommand::Remove { fingerprint } => user::run_key_remove(&data_dir, &fingerprint),
             },
         },
         Command::Repo { command } => match command {
-            RepoCommand::Create { name, owner } => repo::run_repo_create(&data_dir, &name, owner.as_deref()),
+            RepoCommand::Create { name, owner } => {
+                repo::run_repo_create(&data_dir, &name, owner.as_deref())
+            }
             RepoCommand::List => repo::run_repo_list(&data_dir),
             RepoCommand::Remove { name } => repo::run_repo_remove(&data_dir, &name),
         },

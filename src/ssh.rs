@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use std::env;
 use std::path::PathBuf;
 
@@ -46,8 +46,7 @@ fn parse_command(original: &str) -> Result<(GitCommand, String)> {
 /// Main entry point for mgs-ssh.
 /// `fingerprint` comes from the command-line arg passed by authorized_keys.
 pub fn handle_ssh_command(fingerprint: &str) -> Result<()> {
-    let original_cmd =
-        env::var("SSH_ORIGINAL_COMMAND").context("SSH_ORIGINAL_COMMAND not set")?;
+    let original_cmd = env::var("SSH_ORIGINAL_COMMAND").context("SSH_ORIGINAL_COMMAND not set")?;
 
     let (git_cmd, repo_name) = parse_command(&original_cmd)?;
     validate_repo_name(&repo_name)?;

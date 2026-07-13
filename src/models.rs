@@ -14,7 +14,7 @@ impl PermLevel {
         }
     }
 
-    pub fn from_str(s: &str) -> anyhow::Result<Self> {
+    pub fn parse(s: &str) -> anyhow::Result<Self> {
         match s {
             "read" => Ok(PermLevel::Read),
             "write" => Ok(PermLevel::Write),
@@ -28,13 +28,13 @@ impl PermLevel {
 
     /// Returns true if `self` grants at least `required` level.
     pub fn satisfies(&self, required: &PermLevel) -> bool {
-        match (self, required) {
-            (PermLevel::Admin, _) => true,
-            (PermLevel::Write, PermLevel::Write) => true,
-            (PermLevel::Write, PermLevel::Read) => true,
-            (PermLevel::Read, PermLevel::Read) => true,
-            _ => false,
-        }
+        matches!(
+            (self, required),
+            (PermLevel::Admin, _)
+                | (PermLevel::Write, PermLevel::Write)
+                | (PermLevel::Write, PermLevel::Read)
+                | (PermLevel::Read, PermLevel::Read)
+        )
     }
 }
 

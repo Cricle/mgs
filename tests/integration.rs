@@ -22,7 +22,10 @@ fn mgs_cmd(home: &PathBuf, args: &[&str]) -> String {
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
     if !output.status.success() {
-        panic!("mgs {:?} failed:\nstdout: {}\nstderr: {}", args, stdout, stderr);
+        panic!(
+            "mgs {:?} failed:\nstdout: {}\nstderr: {}",
+            args, stdout, stderr
+        );
     }
     stdout
 }
@@ -34,7 +37,11 @@ fn mgs_cmd_fails(home: &PathBuf, args: &[&str]) -> String {
         .output()
         .expect("failed to run mgs");
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-    assert!(!output.status.success(), "mgs {:?} should have failed but succeeded", args);
+    assert!(
+        !output.status.success(),
+        "mgs {:?} should have failed but succeeded",
+        args
+    );
     stderr
 }
 
@@ -43,14 +50,22 @@ fn generate_test_key(home: &PathBuf, name: &str) -> PathBuf {
     let key_path = home.join(format!("{}.pub", name));
     let output = Command::new("ssh-keygen")
         .args([
-            "-t", "ed25519",
-            "-f", home.join(name).to_str().unwrap(),
-            "-N", "",
-            "-C", &format!("{}@test", name),
+            "-t",
+            "ed25519",
+            "-f",
+            home.join(name).to_str().unwrap(),
+            "-N",
+            "",
+            "-C",
+            &format!("{}@test", name),
         ])
         .output()
         .expect("failed to run ssh-keygen");
-    assert!(output.status.success(), "ssh-keygen failed: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "ssh-keygen failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     assert!(key_path.exists(), "public key file not created");
     key_path
 }
@@ -84,7 +99,10 @@ fn test_user_add_and_list() {
     mgs_cmd(&home, &["init"]);
 
     let key_path = generate_test_key(&home, "test_key");
-    let out = mgs_cmd(&home, &["user", "add", "alice", "--key", key_path.to_str().unwrap()]);
+    let out = mgs_cmd(
+        &home,
+        &["user", "add", "alice", "--key", key_path.to_str().unwrap()],
+    );
     assert!(out.contains("Created user 'alice'"));
     assert!(out.contains("SHA256:"));
 
@@ -99,7 +117,10 @@ fn test_user_remove() {
     mgs_cmd(&home, &["init"]);
 
     let key_path = generate_test_key(&home, "rm_key");
-    mgs_cmd(&home, &["user", "add", "bob", "--key", key_path.to_str().unwrap()]);
+    mgs_cmd(
+        &home,
+        &["user", "add", "bob", "--key", key_path.to_str().unwrap()],
+    );
 
     let out = mgs_cmd(&home, &["user", "remove", "bob"]);
     assert!(out.contains("Removed user 'bob'"));
@@ -114,9 +135,27 @@ fn test_user_add_duplicate() {
     mgs_cmd(&home, &["init"]);
 
     let key_path = generate_test_key(&home, "dup_key");
-    mgs_cmd(&home, &["user", "add", "charlie", "--key", key_path.to_str().unwrap()]);
+    mgs_cmd(
+        &home,
+        &[
+            "user",
+            "add",
+            "charlie",
+            "--key",
+            key_path.to_str().unwrap(),
+        ],
+    );
 
-    let err = mgs_cmd_fails(&home, &["user", "add", "charlie", "--key", key_path.to_str().unwrap()]);
+    let err = mgs_cmd_fails(
+        &home,
+        &[
+            "user",
+            "add",
+            "charlie",
+            "--key",
+            key_path.to_str().unwrap(),
+        ],
+    );
     assert!(err.contains("already exists"));
 }
 
@@ -128,9 +167,15 @@ fn test_repo_create_and_list() {
     mgs_cmd(&home, &["init"]);
 
     let key_path = generate_test_key(&home, "repo_key");
-    mgs_cmd(&home, &["user", "add", "owner1", "--key", key_path.to_str().unwrap()]);
+    mgs_cmd(
+        &home,
+        &["user", "add", "owner1", "--key", key_path.to_str().unwrap()],
+    );
 
-    let out = mgs_cmd(&home, &["repo", "create", "team/project", "--owner", "owner1"]);
+    let out = mgs_cmd(
+        &home,
+        &["repo", "create", "team/project", "--owner", "owner1"],
+    );
     assert!(out.contains("Created repository 'team/project'"));
     assert!(out.contains("owner: owner1"));
 
@@ -148,7 +193,10 @@ fn test_repo_remove() {
     mgs_cmd(&home, &["init"]);
 
     let key_path = generate_test_key(&home, "rr_key");
-    mgs_cmd(&home, &["user", "add", "owner2", "--key", key_path.to_str().unwrap()]);
+    mgs_cmd(
+        &home,
+        &["user", "add", "owner2", "--key", key_path.to_str().unwrap()],
+    );
     mgs_cmd(&home, &["repo", "create", "my/repo", "--owner", "owner2"]);
 
     let out = mgs_cmd(&home, &["repo", "remove", "my/repo"]);
@@ -166,14 +214,23 @@ fn test_acl_grant_and_list() {
     mgs_cmd(&home, &["init"]);
 
     let key_path = generate_test_key(&home, "acl_key");
-    mgs_cmd(&home, &["user", "add", "dev1", "--key", key_path.to_str().unwrap()]);
+    mgs_cmd(
+        &home,
+        &["user", "add", "dev1", "--key", key_path.to_str().unwrap()],
+    );
 
     let key_path2 = generate_test_key(&home, "acl_key2");
-    mgs_cmd(&home, &["user", "add", "dev2", "--key", key_path2.to_str().unwrap()]);
+    mgs_cmd(
+        &home,
+        &["user", "add", "dev2", "--key", key_path2.to_str().unwrap()],
+    );
 
     mgs_cmd(&home, &["repo", "create", "org/app", "--owner", "dev1"]);
 
-    let out = mgs_cmd(&home, &["acl", "grant", "dev2", "org/app", "--perm", "write"]);
+    let out = mgs_cmd(
+        &home,
+        &["acl", "grant", "dev2", "org/app", "--perm", "write"],
+    );
     assert!(out.contains("Granted write"));
     assert!(out.contains("dev2"));
     assert!(out.contains("org/app"));
@@ -191,13 +248,22 @@ fn test_acl_revoke() {
     mgs_cmd(&home, &["init"]);
 
     let key_path = generate_test_key(&home, "rev_key");
-    mgs_cmd(&home, &["user", "add", "dev3", "--key", key_path.to_str().unwrap()]);
+    mgs_cmd(
+        &home,
+        &["user", "add", "dev3", "--key", key_path.to_str().unwrap()],
+    );
 
     let key_path2 = generate_test_key(&home, "rev_key2");
-    mgs_cmd(&home, &["user", "add", "dev4", "--key", key_path2.to_str().unwrap()]);
+    mgs_cmd(
+        &home,
+        &["user", "add", "dev4", "--key", key_path2.to_str().unwrap()],
+    );
 
     mgs_cmd(&home, &["repo", "create", "org/svc", "--owner", "dev3"]);
-    mgs_cmd(&home, &["acl", "grant", "dev4", "org/svc", "--perm", "read"]);
+    mgs_cmd(
+        &home,
+        &["acl", "grant", "dev4", "org/svc", "--perm", "read"],
+    );
 
     let out = mgs_cmd(&home, &["acl", "revoke", "dev4", "org/svc"]);
     assert!(out.contains("Revoked permissions"));
@@ -215,17 +281,36 @@ fn test_full_workflow() {
 
     // Create users
     let key1 = generate_test_key(&home, "admin_key");
-    mgs_cmd(&home, &["user", "add", "admin", "--key", key1.to_str().unwrap()]);
+    mgs_cmd(
+        &home,
+        &["user", "add", "admin", "--key", key1.to_str().unwrap()],
+    );
 
     let key2 = generate_test_key(&home, "dev_key");
-    mgs_cmd(&home, &["user", "add", "developer", "--key", key2.to_str().unwrap()]);
+    mgs_cmd(
+        &home,
+        &["user", "add", "developer", "--key", key2.to_str().unwrap()],
+    );
 
     // Create repo
-    let out = mgs_cmd(&home, &["repo", "create", "team/backend", "--owner", "admin"]);
+    let out = mgs_cmd(
+        &home,
+        &["repo", "create", "team/backend", "--owner", "admin"],
+    );
     assert!(out.contains("Created repository 'team/backend'"));
 
     // Grant write to developer
-    mgs_cmd(&home, &["acl", "grant", "developer", "team/backend", "--perm", "write"]);
+    mgs_cmd(
+        &home,
+        &[
+            "acl",
+            "grant",
+            "developer",
+            "team/backend",
+            "--perm",
+            "write",
+        ],
+    );
 
     // Verify user list
     let users = mgs_cmd(&home, &["user", "list"]);
@@ -271,7 +356,10 @@ fn test_acl_grant_invalid_perm() {
     mgs_cmd(&home, &["init"]);
 
     let key_path = generate_test_key(&home, "badperm_key");
-    mgs_cmd(&home, &["user", "add", "u1", "--key", key_path.to_str().unwrap()]);
+    mgs_cmd(
+        &home,
+        &["user", "add", "u1", "--key", key_path.to_str().unwrap()],
+    );
     mgs_cmd(&home, &["repo", "create", "r1", "--owner", "u1"]);
 
     let err = mgs_cmd_fails(&home, &["acl", "grant", "u1", "r1", "--perm", "superadmin"]);
@@ -283,6 +371,9 @@ fn test_user_add_nonexistent_key_file() {
     let home = mgs_home();
     mgs_cmd(&home, &["init"]);
 
-    let err = mgs_cmd_fails(&home, &["user", "add", "u1", "--key", "/tmp/nonexistent-key.pub"]);
+    let err = mgs_cmd_fails(
+        &home,
+        &["user", "add", "u1", "--key", "/tmp/nonexistent-key.pub"],
+    );
     assert!(err.contains("failed to read key file"));
 }

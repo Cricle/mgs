@@ -2,9 +2,9 @@ use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
 
+use super::open_db;
 use crate::auth::{compute_fingerprint, parse_ssh_public_key};
 use crate::git::validate_username;
-use super::open_db;
 
 pub fn run_user_add(data_dir: &Path, username: &str, key_path: &Path) -> Result<()> {
     validate_username(username)?;
@@ -22,7 +22,10 @@ pub fn run_user_add(data_dir: &Path, username: &str, key_path: &Path) -> Result<
     let user = db.create_user(username)?;
     db.add_ssh_key(user.id, &key_type, &public_key, &fingerprint)?;
 
-    println!("Created user '{}' with key fingerprint {}", username, fingerprint);
+    println!(
+        "Created user '{}' with key fingerprint {}",
+        username, fingerprint
+    );
     Ok(())
 }
 

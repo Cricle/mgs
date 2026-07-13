@@ -1,11 +1,11 @@
 use anyhow::{Context, Result};
 use std::path::Path;
 
-use crate::models::PermLevel;
 use super::open_db;
+use crate::models::PermLevel;
 
 pub fn run_acl_grant(data_dir: &Path, username: &str, repo_name: &str, perm: &str) -> Result<()> {
-    let level = PermLevel::from_str(perm).with_context(|| {
+    let level = PermLevel::parse(perm).with_context(|| {
         format!(
             "invalid permission level '{}', must be one of: read, write, admin",
             perm
@@ -22,7 +22,12 @@ pub fn run_acl_grant(data_dir: &Path, username: &str, repo_name: &str, perm: &st
         .with_context(|| format!("repository '{}' not found", repo_name))?;
 
     db.grant_permission(user.id, repo.id, &level)?;
-    println!("Granted {} to '{}' on '{}'", level.as_str(), username, repo_name);
+    println!(
+        "Granted {} to '{}' on '{}'",
+        level.as_str(),
+        username,
+        repo_name
+    );
     Ok(())
 }
 

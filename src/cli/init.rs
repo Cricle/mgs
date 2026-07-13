@@ -1,10 +1,10 @@
 use anyhow::{Context, Result};
 use std::fs;
-use std::path::PathBuf;
+use std::path::Path;
 
 use crate::db::Database;
 
-pub fn run_init(data_dir: &PathBuf) -> Result<()> {
+pub fn run_init(data_dir: &Path) -> Result<()> {
     let repos_dir = data_dir.join("repos");
     fs::create_dir_all(&repos_dir)
         .with_context(|| format!("failed to create {}", repos_dir.display()))?;

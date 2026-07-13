@@ -1,8 +1,8 @@
 use anyhow::{Context, Result};
 use std::path::Path;
 
-use crate::git::{init_bare_repo, normalize_repo_name, repo_disk_path, validate_repo_name};
 use super::open_db;
+use crate::git::{init_bare_repo, normalize_repo_name, repo_disk_path, validate_repo_name};
 
 pub fn run_repo_create(data_dir: &Path, name: &str, owner: Option<&str>) -> Result<()> {
     let name = normalize_repo_name(name);
