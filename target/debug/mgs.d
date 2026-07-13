@@ -1,1 +1,0 @@
-/root/github/mgs/target/debug/mgs: /root/github/mgs/src/auth.rs /root/github/mgs/src/bin/mgs.rs /root/github/mgs/src/db.rs /root/github/mgs/src/git.rs /root/github/mgs/src/lib.rs /root/github/mgs/src/models.rs /root/github/mgs/src/ssh.rs
