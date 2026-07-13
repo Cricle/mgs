@@ -273,7 +273,7 @@ impl Database {
             Ok(level_str)
         })?;
         match rows.next() {
-            Some(row) => Ok(PermLevel::from_str(&row?)),
+            Some(row) => Ok(Some(PermLevel::from_str(&row?)?)),
             None => Ok(None),
         }
     }
@@ -291,8 +291,14 @@ impl Database {
                 created_at: row.get(2)?,
             };
             let level_str: String = row.get(3)?;
-            Ok((user, PermLevel::from_str(&level_str).unwrap_or(PermLevel::Read)))
+            Ok((user, level_str))
         })?;
-        Ok(rows.collect::<Result<Vec<_>, _>>()?)
+        let mut result = Vec::new();
+        for row in rows {
+            let (user, level_str) = row?;
+            let level = PermLevel::from_str(&level_str)?;
+            result.push((user, level));
+        }
+        Ok(result)
     }
 }

@@ -15,10 +15,13 @@ pub fn validate_repo_name(name: &str) -> Result<()> {
             bail!("invalid character '{}' in repository name", ch);
         }
     }
-    if name.ends_with(".git") {
-        // Allowed but we don't require it
-    }
     Ok(())
+}
+
+/// Normalize a repository name by stripping any trailing `.git` suffix.
+/// This ensures consistent storage regardless of whether the user includes `.git`.
+pub fn normalize_repo_name(name: &str) -> &str {
+    name.strip_suffix(".git").unwrap_or(name)
 }
 
 /// Validate username: only [a-zA-Z0-9_-] allowed.

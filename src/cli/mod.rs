@@ -4,7 +4,14 @@ pub mod repo;
 pub mod user;
 
 use clap::{Parser, Subcommand};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+use crate::db::Database;
+
+pub(crate) fn open_db(data_dir: &Path) -> anyhow::Result<Database> {
+    let db_path = data_dir.join("mgs.db");
+    Database::open(&db_path)
+}
 
 #[derive(Parser)]
 #[command(name = "mgs", about = "Mini Git Server")]

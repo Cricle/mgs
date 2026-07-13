@@ -3,13 +3,8 @@ use std::fs;
 use std::path::Path;
 
 use crate::auth::{compute_fingerprint, parse_ssh_public_key};
-use crate::db::Database;
 use crate::git::validate_username;
-
-fn open_db(data_dir: &Path) -> Result<Database> {
-    let db_path = data_dir.join("mgs.db");
-    Database::open(&db_path)
-}
+use super::open_db;
 
 pub fn run_user_add(data_dir: &Path, username: &str, key_path: &Path) -> Result<()> {
     validate_username(username)?;

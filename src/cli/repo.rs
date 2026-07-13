@@ -1,15 +1,11 @@
 use anyhow::{Context, Result};
 use std::path::Path;
 
-use crate::db::Database;
-use crate::git::{init_bare_repo, repo_disk_path, validate_repo_name};
-
-fn open_db(data_dir: &Path) -> Result<Database> {
-    let db_path = data_dir.join("mgs.db");
-    Database::open(&db_path)
-}
+use crate::git::{init_bare_repo, normalize_repo_name, repo_disk_path, validate_repo_name};
+use super::open_db;
 
 pub fn run_repo_create(data_dir: &Path, name: &str, owner: Option<&str>) -> Result<()> {
+    let name = normalize_repo_name(name);
     validate_repo_name(name)?;
     let db = open_db(data_dir)?;
 
@@ -28,8 +24,11 @@ pub fn run_repo_create(data_dir: &Path, name: &str, owner: Option<&str>) -> Resu
         .with_context(|| format!("owner user '{}' not found", &owner_username))?;
 
     let disk_path = repo_disk_path(data_dir, name);
-    init_bare_repo(&disk_path)?;
     db.create_repo(name, owner.id)?;
+    if let Err(e) = init_bare_repo(&disk_path) {
+        let _ = db.delete_repo(name);
+        return Err(e);
+    }
 
     println!("Created repository '{}' (owner: {})", name, owner_username);
     Ok(())
@@ -56,11 +55,12 @@ pub fn run_repo_remove(data_dir: &Path, name: &str) -> Result<()> {
     let db = open_db(data_dir)?;
     let disk_path = repo_disk_path(data_dir, name);
 
-    if db.delete_repo(name)? {
+    if db.find_repo(name)?.is_some() {
         if disk_path.exists() {
             std::fs::remove_dir_all(&disk_path)
                 .with_context(|| format!("failed to remove {}", disk_path.display()))?;
         }
+        db.delete_repo(name)?;
         println!("Removed repository '{}'", name);
     } else {
         println!("Repository '{}' not found", name);

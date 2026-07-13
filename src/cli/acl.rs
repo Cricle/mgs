@@ -1,13 +1,8 @@
 use anyhow::{Context, Result};
 use std::path::Path;
 
-use crate::db::Database;
 use crate::models::PermLevel;
-
-fn open_db(data_dir: &Path) -> Result<Database> {
-    let db_path = data_dir.join("mgs.db");
-    Database::open(&db_path)
-}
+use super::open_db;
 
 pub fn run_acl_grant(data_dir: &Path, username: &str, repo_name: &str, perm: &str) -> Result<()> {
     let level = PermLevel::from_str(perm).with_context(|| {

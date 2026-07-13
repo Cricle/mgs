@@ -14,12 +14,15 @@ impl PermLevel {
         }
     }
 
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn from_str(s: &str) -> anyhow::Result<Self> {
         match s {
-            "read" => Some(PermLevel::Read),
-            "write" => Some(PermLevel::Write),
-            "admin" => Some(PermLevel::Admin),
-            _ => None,
+            "read" => Ok(PermLevel::Read),
+            "write" => Ok(PermLevel::Write),
+            "admin" => Ok(PermLevel::Admin),
+            _ => anyhow::bail!(
+                "invalid permission level '{}', expected one of: read, write, admin",
+                s
+            ),
         }
     }
 
