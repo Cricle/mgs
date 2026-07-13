@@ -27,7 +27,7 @@ pub fn run_repo_create(data_dir: &Path, name: &str, owner: Option<&str>) -> Resu
 
     let owner = db
         .find_user_by_username(&owner_username)?
-        .with_context(|| format!("owner user '{}' not found", &owner_username))?;
+        .with_context(|| format!("owner user '{}' not found", owner_username))?;
 
     let disk_path = repo_disk_path(data_dir, name);
     db.create_repo(name, owner.id)?;
