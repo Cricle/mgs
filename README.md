@@ -7,7 +7,8 @@ A lightweight, pure-Rust Git server for team-internal use. Reuses system SSH for
 - **SSH transport** — leverages existing system `sshd`, no custom SSH implementation needed
 - **SSH public key authentication** — users authenticate with their SSH keys
 - **SQLite metadata** — single-file database with WAL mode, zero external dependencies
-- **CLI management** — `mgs init`, `mgs user`, `mgs repo`
+- **CLI management** — `mgs user`, `mgs repo`
+- **Auto-initialization** — data directory and database created on first use
 - **Cross-platform** — Linux, macOS, Windows
 
 ## Architecture
@@ -38,10 +39,10 @@ A lightweight, pure-Rust Git server for team-internal use. Reuses system SSH for
 
 ### Data Directory
 
-Default: `~/.mgs/` (override with `MGS_HOME` env var or `--data-dir` flag)
+Default: the directory containing the `mgs` binary (override with `MGS_HOME` env var or `--data-dir` flag)
 
 ```
-~/.mgs/
+<data_dir>/
 ├── mgs.db          # SQLite database
 └── repos/
     ├── team/
@@ -69,15 +70,7 @@ Download the latest binary for your platform from [Releases](https://github.com/
 
 ## Quick Start
 
-### 1. Initialize MGS
-
-```bash
-mgs init
-```
-
-This creates `~/.mgs/` with the database and repos directory.
-
-### 2. Create Users
+### 1. Create Users
 
 ```bash
 # Add user with their SSH public key
@@ -94,7 +87,7 @@ mgs user key add alice --key /home/alice/.ssh/id_rsa.pub
 mgs user key list alice
 ```
 
-### 3. Create Repositories
+### 2. Create Repositories
 
 ```bash
 # Create repo with explicit owner
@@ -107,7 +100,7 @@ mgs repo create team/frontend
 mgs repo list
 ```
 
-### 4. Configure SSH
+### 3. Configure SSH
 
 For each user, add their public key to `~/.ssh/authorized_keys` on the server:
 
@@ -121,7 +114,7 @@ You can get the fingerprint with:
 ssh-keygen -lf /path/to/key.pub
 ```
 
-### 5. Use Git
+### 4. Use Git
 
 ```bash
 # Clone
@@ -136,14 +129,6 @@ git pull
 ```
 
 ## CLI Reference
-
-### `mgs init`
-
-Initialize the MGS data directory and database.
-
-```bash
-mgs init [--data-dir <path>]
-```
 
 ### `mgs user`
 
@@ -188,7 +173,7 @@ mgs repo remove <name>
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `MGS_HOME` | Data directory path | `~/.mgs/` |
+| `MGS_HOME` | Data directory path | binary directory |
 
 ## Database Schema
 

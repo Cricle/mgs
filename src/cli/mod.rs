@@ -1,7 +1,7 @@
 //! CLI interface for the `mgs` administration tool.
 //!
 //! Defines the clap-based command hierarchy and dispatches to subcommand
-//! handlers in [`user`], [`repo`], and [`init`] modules.
+//! handlers in [`user`] and [`repo`] modules.
 
 pub mod repo;
 pub mod user;

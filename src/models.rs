@@ -32,16 +32,13 @@ pub struct SshKey {
 }
 
 /// A Git repository.
-///
-/// The `owner_id` user implicitly has `Admin` permission without
-/// an explicit row in the `permissions` table.
 #[derive(Debug, Clone)]
 pub struct Repository {
     /// Unique identifier.
     pub id: i64,
     /// Repository path (e.g. `"team/backend"`), without `.git` suffix.
     pub name: String,
-    /// Owner user's ID (implicit admin).
+    /// Owner user's ID.
     pub owner_id: i64,
     /// ISO 8601 creation timestamp.
     pub created_at: String,
