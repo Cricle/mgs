@@ -15,7 +15,6 @@ path = "src/bin/mgs_ssh.rs"
 rusqlite = { version = "0.35", features = ["bundled"] }
 clap = { version = "4", features = ["derive", "env"] }
 anyhow = "1"
-thiserror = "2"
 axum = "0.8"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "io-util"] }
 rand = "0.9"
