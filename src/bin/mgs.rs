@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::Parser;
-use mgs::cli::{AclCommand, Cli, Command, KeyCommand, RepoCommand, UserCommand};
-use mgs::cli::{acl, init, repo, user};
+use mgs::cli::{Cli, Command, KeyCommand, RepoCommand, UserCommand};
+use mgs::cli::{init, repo, user};
 
 fn main() {
     if let Err(e) = run() {
@@ -32,17 +32,6 @@ fn run() -> Result<()> {
             }
             RepoCommand::List => repo::run_repo_list(&data_dir),
             RepoCommand::Remove { name } => repo::run_repo_remove(&data_dir, &name),
-        },
-        Command::Acl { command } => match command {
-            AclCommand::Grant {
-                username,
-                repo,
-                perm,
-            } => acl::run_acl_grant(&data_dir, &username, &repo, &perm),
-            AclCommand::Revoke { username, repo } => {
-                acl::run_acl_revoke(&data_dir, &username, &repo)
-            }
-            AclCommand::List { repo } => acl::run_acl_list(&data_dir, &repo),
         },
     }
 }

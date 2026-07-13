@@ -8,6 +8,15 @@ use super::open_db;
 use crate::auth::{compute_fingerprint, parse_ssh_public_key};
 use crate::git::validate_username;
 
+/// Reads an SSH public key file and returns `(key_type, public_key, fingerprint)`.
+fn read_ssh_key(key_path: &Path) -> Result<(String, String, String)> {
+    let content = fs::read_to_string(key_path)
+        .with_context(|| format!("failed to read key file: {}", key_path.display()))?;
+    let (key_type, public_key) = parse_ssh_public_key(&content)?;
+    let fingerprint = compute_fingerprint(&content)?;
+    Ok((key_type, public_key, fingerprint))
+}
+
 /// Creates a new user with an SSH public key.
 ///
 /// Validates the username, reads and parses the key file, computes its fingerprint,
@@ -20,10 +29,7 @@ pub fn run_user_add(data_dir: &Path, username: &str, key_path: &Path) -> Result<
         anyhow::bail!("user '{}' already exists", username);
     }
 
-    let key_content = fs::read_to_string(key_path)
-        .with_context(|| format!("failed to read key file: {}", key_path.display()))?;
-    let (key_type, public_key) = parse_ssh_public_key(&key_content)?;
-    let fingerprint = compute_fingerprint(&key_content)?;
+    let (key_type, public_key, fingerprint) = read_ssh_key(key_path)?;
 
     let user = db.create_user(username)?;
     db.add_ssh_key(user.id, &key_type, &public_key, &fingerprint)?;
@@ -68,10 +74,7 @@ pub fn run_key_add(data_dir: &Path, username: &str, key_path: &Path) -> Result<(
         .find_user_by_username(username)?
         .with_context(|| format!("user '{}' not found", username))?;
 
-    let key_content = fs::read_to_string(key_path)
-        .with_context(|| format!("failed to read key file: {}", key_path.display()))?;
-    let (key_type, public_key) = parse_ssh_public_key(&key_content)?;
-    let fingerprint = compute_fingerprint(&key_content)?;
+    let (key_type, public_key, fingerprint) = read_ssh_key(key_path)?;
 
     db.add_ssh_key(user.id, &key_type, &public_key, &fingerprint)?;
     println!("Added key {} to user '{}'", fingerprint, username);

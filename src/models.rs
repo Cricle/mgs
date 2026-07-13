@@ -1,61 +1,5 @@
 //! Data models for MGS entities.
 
-/// Permission level for repository access.
-///
-/// Hierarchy: `Admin` > `Write` > `Read`. Each level implies all lower levels.
-/// Repository owners implicitly have `Admin` without an explicit permissions row.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum PermLevel {
-    /// Clone and fetch only.
-    Read,
-    /// Push (implies read).
-    Write,
-    /// Push + manage permissions (implies write).
-    Admin,
-}
-
-impl PermLevel {
-    /// Returns the lowercase string representation (`"read"`, `"write"`, `"admin"`).
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            PermLevel::Read => "read",
-            PermLevel::Write => "write",
-            PermLevel::Admin => "admin",
-        }
-    }
-
-    /// Parses a permission level from a string.
-    ///
-    /// Accepts `"read"`, `"write"`, or `"admin"` (case-sensitive).
-    /// Returns an error for any other input.
-    pub fn parse(s: &str) -> anyhow::Result<Self> {
-        match s {
-            "read" => Ok(PermLevel::Read),
-            "write" => Ok(PermLevel::Write),
-            "admin" => Ok(PermLevel::Admin),
-            _ => anyhow::bail!(
-                "invalid permission level '{}', expected one of: read, write, admin",
-                s
-            ),
-        }
-    }
-
-    /// Returns `true` if `self` grants at least the `required` level.
-    ///
-    /// - `Admin` satisfies any requirement
-    /// - `Write` satisfies `Write` and `Read`
-    /// - `Read` satisfies only `Read`
-    pub fn satisfies(&self, required: &PermLevel) -> bool {
-        matches!(
-            (self, required),
-            (PermLevel::Admin, _)
-                | (PermLevel::Write, PermLevel::Write)
-                | (PermLevel::Write, PermLevel::Read)
-                | (PermLevel::Read, PermLevel::Read)
-        )
-    }
-}
-
 /// A registered user who can access repositories via SSH.
 #[derive(Debug, Clone)]
 pub struct User {
@@ -101,19 +45,4 @@ pub struct Repository {
     pub owner_id: i64,
     /// ISO 8601 creation timestamp.
     pub created_at: String,
-}
-
-/// An explicit permission grant linking a user to a repository.
-///
-/// Note: repository owners have implicit `Admin` and do not need a row here.
-#[derive(Debug, Clone)]
-pub struct Permission {
-    /// Unique identifier.
-    pub id: i64,
-    /// User ID.
-    pub user_id: i64,
-    /// Repository ID.
-    pub repo_id: i64,
-    /// Granted permission level.
-    pub level: PermLevel,
 }

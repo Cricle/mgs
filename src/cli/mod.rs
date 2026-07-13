@@ -1,9 +1,8 @@
 //! CLI interface for the `mgs` administration tool.
 //!
 //! Defines the clap-based command hierarchy and dispatches to subcommand
-//! handlers in [`user`], [`repo`], [`acl`], and [`init`] modules.
+//! handlers in [`user`], [`repo`], and [`init`] modules.
 
-pub mod acl;
 pub mod init;
 pub mod repo;
 pub mod user;
@@ -45,11 +44,6 @@ pub enum Command {
     Repo {
         #[command(subcommand)]
         command: RepoCommand,
-    },
-    /// Manage access control
-    Acl {
-        #[command(subcommand)]
-        command: AclCommand,
     },
 }
 
@@ -103,23 +97,6 @@ pub enum RepoCommand {
     List,
     /// Remove a repository
     Remove { name: String },
-}
-
-/// Access control (permission) management subcommands.
-#[derive(Subcommand)]
-pub enum AclCommand {
-    /// Grant permission to a user on a repository
-    Grant {
-        username: String,
-        repo: String,
-        /// Permission level: read, write, admin
-        #[arg(long)]
-        perm: String,
-    },
-    /// Revoke permission from a user on a repository
-    Revoke { username: String, repo: String },
-    /// List permissions for a repository
-    List { repo: String },
 }
 
 impl Cli {

@@ -19,11 +19,3 @@ CREATE TABLE IF NOT EXISTS repositories (
     owner_id    INTEGER NOT NULL REFERENCES users(id),
     created_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
-
-CREATE TABLE IF NOT EXISTS permissions (
-    id          INTEGER PRIMARY KEY,
-    user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    repo_id     INTEGER NOT NULL REFERENCES repositories(id) ON DELETE CASCADE,
-    level       TEXT NOT NULL CHECK(level IN ('read', 'write', 'admin')),
-    UNIQUE(user_id, repo_id)
-);

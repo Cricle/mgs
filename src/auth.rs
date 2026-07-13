@@ -1,13 +1,9 @@
-//! Authentication and authorization.
+//! Authentication.
 //!
-//! Handles SSH public key parsing, fingerprint computation (via `ssh-keygen`),
-//! and permission checking against the database.
+//! Handles SSH public key parsing and fingerprint computation (via `ssh-keygen`).
 
 use anyhow::{Context, Result, bail};
 use std::process::Command;
-
-use crate::db::Database;
-use crate::models::PermLevel;
 
 /// Parses an SSH public key line into `(key_type, public_key_base64)`.
 ///
@@ -86,32 +82,6 @@ pub fn compute_fingerprint(public_key_line: &str) -> Result<String> {
         .context("could not parse fingerprint from ssh-keygen output")?;
 
     Ok(fingerprint.to_string())
-}
-
-/// Checks if a user has at least `required` permission on a repository.
-///
-/// Looks up the effective permission via [`Database::get_permission`], which
-/// returns implicit `Admin` for repo owners. Returns `Ok(())` if the
-/// requirement is satisfied, or an error describing the denial.
-pub fn check_permission(
-    db: &Database,
-    user_id: i64,
-    repo_id: i64,
-    required: &PermLevel,
-) -> Result<()> {
-    let effective = db
-        .get_permission(user_id, repo_id)?
-        .with_context(|| "access denied")?;
-
-    if effective.satisfies(required) {
-        Ok(())
-    } else {
-        bail!(
-            "permission denied: need {}, have {}",
-            required.as_str(),
-            effective.as_str()
-        )
-    }
 }
 
 #[cfg(test)]

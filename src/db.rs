@@ -1,14 +1,14 @@
 //! SQLite database layer.
 //!
 //! Provides the [`Database`] struct with methods for managing users,
-//! SSH keys, repositories, and permissions. Uses WAL journal mode
-//! and foreign key constraints.
+//! SSH keys, and repositories. Uses WAL journal mode and foreign key
+//! constraints.
 
 use anyhow::{Context, Result};
 use rusqlite::{Connection, params};
 use std::path::Path;
 
-use crate::models::{PermLevel, Repository, SshKey, User};
+use crate::models::{Repository, SshKey, User};
 
 /// MGS metadata database backed by SQLite.
 ///
@@ -278,86 +278,5 @@ impl Database {
             .conn
             .execute("DELETE FROM repositories WHERE name = ?1", params![name])?;
         Ok(n > 0)
-    }
-
-    // --- Permissions ---
-
-    /// Grants a permission level to a user on a repository.
-    ///
-    /// If a grant already exists for this (user, repo) pair, the level is updated (upsert).
-    pub fn grant_permission(&self, user_id: i64, repo_id: i64, level: &PermLevel) -> Result<()> {
-        self.conn.execute(
-            "INSERT INTO permissions (user_id, repo_id, level) VALUES (?1, ?2, ?3)
-             ON CONFLICT(user_id, repo_id) DO UPDATE SET level = excluded.level",
-            params![user_id, repo_id, level.as_str()],
-        )?;
-        Ok(())
-    }
-
-    /// Revokes a permission grant. Returns `true` if a row was removed.
-    pub fn revoke_permission(&self, user_id: i64, repo_id: i64) -> Result<bool> {
-        let n = self.conn.execute(
-            "DELETE FROM permissions WHERE user_id = ?1 AND repo_id = ?2",
-            params![user_id, repo_id],
-        )?;
-        Ok(n > 0)
-    }
-
-    /// Gets the effective permission for a user on a repository.
-    ///
-    /// Returns `Some(PermLevel::Admin)` if the user is the repository owner,
-    /// otherwise returns the explicitly granted level, or `None` if no access.
-    pub fn get_permission(&self, user_id: i64, repo_id: i64) -> Result<Option<PermLevel>> {
-        let is_owner = self
-            .conn
-            .query_row(
-                "SELECT 1 FROM repositories WHERE id = ?1 AND owner_id = ?2",
-                params![repo_id, user_id],
-                |_| Ok(true),
-            )
-            .unwrap_or(false);
-
-        if is_owner {
-            return Ok(Some(PermLevel::Admin));
-        }
-
-        let mut stmt = self
-            .conn
-            .prepare("SELECT level FROM permissions WHERE user_id = ?1 AND repo_id = ?2")?;
-        let mut rows = stmt.query_map(params![user_id, repo_id], |row| {
-            let level_str: String = row.get(0)?;
-            Ok(level_str)
-        })?;
-        match rows.next() {
-            Some(row) => Ok(Some(PermLevel::parse(&row?)?)),
-            None => Ok(None),
-        }
-    }
-
-    /// Lists all explicit permission grants for a repository.
-    ///
-    /// Does not include the owner's implicit admin. Returns `(User, PermLevel)` pairs.
-    pub fn list_permissions(&self, repo_id: i64) -> Result<Vec<(User, PermLevel)>> {
-        let mut stmt = self.conn.prepare(
-            "SELECT u.id, u.username, u.created_at, p.level
-             FROM permissions p JOIN users u ON u.id = p.user_id
-             WHERE p.repo_id = ?1 ORDER BY u.username",
-        )?;
-        let rows = stmt.query_map(params![repo_id], |row| {
-            let user = User {
-                id: row.get(0)?,
-                username: row.get(1)?,
-                created_at: row.get(2)?,
-            };
-            let level_str: String = row.get(3)?;
-            Ok((user, level_str))
-        })?;
-        let mut result = Vec::new();
-        for row in rows {
-            let (user, level_str) = row?;
-            let level = PermLevel::parse(&level_str)?;
-            result.push((user, level));
-        }
-        Ok(result)
     }
 }

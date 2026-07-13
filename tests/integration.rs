@@ -13,7 +13,7 @@ fn mgs_home() -> PathBuf {
     dir
 }
 
-fn mgs_cmd(home: &PathBuf, args: &[&str]) -> String {
+fn mgs_cmd_inner(home: &PathBuf, args: &[&str]) -> (bool, String, String) {
     let output = Command::new(env!("CARGO_BIN_EXE_mgs"))
         .env("MGS_HOME", home.to_str().unwrap())
         .args(args)
@@ -21,7 +21,12 @@ fn mgs_cmd(home: &PathBuf, args: &[&str]) -> String {
         .expect("failed to run mgs");
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-    if !output.status.success() {
+    (output.status.success(), stdout, stderr)
+}
+
+fn mgs_cmd(home: &PathBuf, args: &[&str]) -> String {
+    let (success, stdout, stderr) = mgs_cmd_inner(home, args);
+    if !success {
         panic!(
             "mgs {:?} failed:\nstdout: {}\nstderr: {}",
             args, stdout, stderr
@@ -31,17 +36,8 @@ fn mgs_cmd(home: &PathBuf, args: &[&str]) -> String {
 }
 
 fn mgs_cmd_fails(home: &PathBuf, args: &[&str]) -> String {
-    let output = Command::new(env!("CARGO_BIN_EXE_mgs"))
-        .env("MGS_HOME", home.to_str().unwrap())
-        .args(args)
-        .output()
-        .expect("failed to run mgs");
-    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-    assert!(
-        !output.status.success(),
-        "mgs {:?} should have failed but succeeded",
-        args
-    );
+    let (success, _, stderr) = mgs_cmd_inner(home, args);
+    assert!(!success, "mgs {:?} should have failed but succeeded", args);
     stderr
 }
 
@@ -206,72 +202,6 @@ fn test_repo_remove() {
     assert!(list_out.contains("No repositories found"));
 }
 
-// ---- ACL tests ----
-
-#[test]
-fn test_acl_grant_and_list() {
-    let home = mgs_home();
-    mgs_cmd(&home, &["init"]);
-
-    let key_path = generate_test_key(&home, "acl_key");
-    mgs_cmd(
-        &home,
-        &["user", "add", "dev1", "--key", key_path.to_str().unwrap()],
-    );
-
-    let key_path2 = generate_test_key(&home, "acl_key2");
-    mgs_cmd(
-        &home,
-        &["user", "add", "dev2", "--key", key_path2.to_str().unwrap()],
-    );
-
-    mgs_cmd(&home, &["repo", "create", "org/app", "--owner", "dev1"]);
-
-    let out = mgs_cmd(
-        &home,
-        &["acl", "grant", "dev2", "org/app", "--perm", "write"],
-    );
-    assert!(out.contains("Granted write"));
-    assert!(out.contains("dev2"));
-    assert!(out.contains("org/app"));
-
-    let list_out = mgs_cmd(&home, &["acl", "list", "org/app"]);
-    assert!(list_out.contains("Repository: org/app"));
-    assert!(list_out.contains("owner: dev1"));
-    assert!(list_out.contains("dev2"));
-    assert!(list_out.contains("write"));
-}
-
-#[test]
-fn test_acl_revoke() {
-    let home = mgs_home();
-    mgs_cmd(&home, &["init"]);
-
-    let key_path = generate_test_key(&home, "rev_key");
-    mgs_cmd(
-        &home,
-        &["user", "add", "dev3", "--key", key_path.to_str().unwrap()],
-    );
-
-    let key_path2 = generate_test_key(&home, "rev_key2");
-    mgs_cmd(
-        &home,
-        &["user", "add", "dev4", "--key", key_path2.to_str().unwrap()],
-    );
-
-    mgs_cmd(&home, &["repo", "create", "org/svc", "--owner", "dev3"]);
-    mgs_cmd(
-        &home,
-        &["acl", "grant", "dev4", "org/svc", "--perm", "read"],
-    );
-
-    let out = mgs_cmd(&home, &["acl", "revoke", "dev4", "org/svc"]);
-    assert!(out.contains("Revoked permissions"));
-
-    let list_out = mgs_cmd(&home, &["acl", "list", "org/svc"]);
-    assert!(list_out.contains("No additional permissions granted"));
-}
-
 // ---- Full end-to-end workflow ----
 
 #[test]
@@ -299,19 +229,6 @@ fn test_full_workflow() {
     );
     assert!(out.contains("Created repository 'team/backend'"));
 
-    // Grant write to developer
-    mgs_cmd(
-        &home,
-        &[
-            "acl",
-            "grant",
-            "developer",
-            "team/backend",
-            "--perm",
-            "write",
-        ],
-    );
-
     // Verify user list
     let users = mgs_cmd(&home, &["user", "list"]);
     assert!(users.contains("admin"));
@@ -321,16 +238,6 @@ fn test_full_workflow() {
     let repos = mgs_cmd(&home, &["repo", "list"]);
     assert!(repos.contains("team/backend"));
     assert!(repos.contains("owner: admin"));
-
-    // Verify ACL
-    let acl = mgs_cmd(&home, &["acl", "list", "team/backend"]);
-    assert!(acl.contains("developer"));
-    assert!(acl.contains("write"));
-
-    // Revoke and verify
-    mgs_cmd(&home, &["acl", "revoke", "developer", "team/backend"]);
-    let acl_after = mgs_cmd(&home, &["acl", "list", "team/backend"]);
-    assert!(acl_after.contains("No additional permissions granted"));
 
     // Remove user and verify
     mgs_cmd(&home, &["user", "remove", "developer"]);
@@ -348,22 +255,6 @@ fn test_repo_create_nonexistent_owner() {
 
     let err = mgs_cmd_fails(&home, &["repo", "create", "x/y", "--owner", "ghost"]);
     assert!(err.contains("not found"));
-}
-
-#[test]
-fn test_acl_grant_invalid_perm() {
-    let home = mgs_home();
-    mgs_cmd(&home, &["init"]);
-
-    let key_path = generate_test_key(&home, "badperm_key");
-    mgs_cmd(
-        &home,
-        &["user", "add", "u1", "--key", key_path.to_str().unwrap()],
-    );
-    mgs_cmd(&home, &["repo", "create", "r1", "--owner", "u1"]);
-
-    let err = mgs_cmd_fails(&home, &["acl", "grant", "u1", "r1", "--perm", "superadmin"]);
-    assert!(err.contains("invalid permission"));
 }
 
 #[test]

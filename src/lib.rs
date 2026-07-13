@@ -7,14 +7,14 @@
 //!
 //! The server consists of two binaries and a shared library:
 //!
-//! - **`mgs`** — Administrator CLI for managing users, repositories, and permissions
+//! - **`mgs`** — Administrator CLI for managing users and repositories
 //! - **`mgs-ssh`** — SSH forced command entry point, invoked by `sshd`
 //!
 //! The shared library provides:
 //!
-//! - [`models`] — Data structures (`User`, `SshKey`, `Repository`, `Permission`)
+//! - [`models`] — Data structures (`User`, `SshKey`, `Repository`)
 //! - [`db`] — SQLite database layer with CRUD operations
-//! - [`auth`] — SSH key parsing, fingerprint computation, permission checks
+//! - [`auth`] — SSH key parsing and fingerprint computation
 //! - [`git`] — Git repository operations and validation
 //! - [`ssh`] — SSH command parsing and routing
 //! - [`cli`] — CLI command handlers

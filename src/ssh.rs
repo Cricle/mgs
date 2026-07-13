@@ -1,17 +1,15 @@
 //! SSH command handling for `mgs-ssh`.
 //!
 //! Parses `SSH_ORIGINAL_COMMAND` (set by `sshd`), identifies the user by
-//! SSH key fingerprint, checks permissions, and delegates to the appropriate
-//! `git-upload-pack` or `git-receive-pack` process.
+//! SSH key fingerprint, and delegates to the appropriate `git-upload-pack`
+//! or `git-receive-pack` process.
 
 use anyhow::{Context, Result, bail};
 use std::env;
 use std::path::PathBuf;
 
-use crate::auth::check_permission;
 use crate::db::Database;
 use crate::git::{exec_git_receive_pack, exec_git_upload_pack, repo_disk_path, validate_repo_name};
-use crate::models::PermLevel;
 
 /// Parsed Git command from `SSH_ORIGINAL_COMMAND`.
 enum GitCommand {
@@ -60,8 +58,7 @@ fn parse_command(original: &str) -> Result<(GitCommand, String)> {
 /// 1. Read `SSH_ORIGINAL_COMMAND` from environment
 /// 2. Parse the git command and repository name
 /// 3. Look up user by fingerprint in the database
-/// 4. Check permission (read for clone/fetch, write for push)
-/// 5. Execute the corresponding git pack process
+/// 4. Execute the corresponding git pack process
 pub fn handle_ssh_command(fingerprint: &str) -> Result<()> {
     let original_cmd = env::var("SSH_ORIGINAL_COMMAND").context("SSH_ORIGINAL_COMMAND not set")?;
 
@@ -72,20 +69,13 @@ pub fn handle_ssh_command(fingerprint: &str) -> Result<()> {
     let db_path = data_dir.join("mgs.db");
     let db = Database::open(&db_path)?;
 
-    let user = db
+    let _user = db
         .find_user_by_fingerprint(fingerprint)?
         .with_context(|| format!("no user found for key {}", fingerprint))?;
 
-    let repo = db
+    let _repo = db
         .find_repo(&repo_name)?
         .with_context(|| format!("repository not found: {}", repo_name))?;
-
-    let required = match git_cmd {
-        GitCommand::UploadPack => PermLevel::Read,
-        GitCommand::ReceivePack => PermLevel::Write,
-    };
-
-    check_permission(&db, user.id, repo.id, &required)?;
 
     let disk_path = repo_disk_path(&data_dir, &repo_name);
     if !disk_path.exists() {

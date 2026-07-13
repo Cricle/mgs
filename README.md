@@ -7,9 +7,7 @@ A lightweight, pure-Rust Git server for team-internal use. Reuses system SSH for
 - **SSH transport** — leverages existing system `sshd`, no custom SSH implementation needed
 - **SSH public key authentication** — users authenticate with their SSH keys
 - **SQLite metadata** — single-file database with WAL mode, zero external dependencies
-- **CLI management** — `mgs init`, `mgs user`, `mgs repo`, `mgs acl`
-- **Permission control** — read/write/admin levels per repository
-- **Owner implicit admin** — repository owners always have admin access
+- **CLI management** — `mgs init`, `mgs user`, `mgs repo`
 - **Cross-platform** — Linux, macOS, Windows
 
 ## Architecture
@@ -35,7 +33,7 @@ A lightweight, pure-Rust Git server for team-internal use. Reuses system SSH for
 
 | Binary | Purpose |
 |--------|---------|
-| `mgs` | Administrator CLI for managing users, repos, and permissions |
+| `mgs` | Administrator CLI for managing users and repos |
 | `mgs-ssh` | SSH forced command entry point, called by `sshd` |
 
 ### Data Directory
@@ -109,23 +107,7 @@ mgs repo create team/frontend
 mgs repo list
 ```
 
-### 4. Configure Permissions
-
-```bash
-# Grant write access
-mgs acl grant bob team/backend --perm write
-
-# Grant read-only access
-mgs acl grant charlie team/backend --perm read
-
-# List permissions
-mgs acl list team/backend
-
-# Revoke access
-mgs acl revoke charlie team/backend
-```
-
-### 5. Configure SSH
+### 4. Configure SSH
 
 For each user, add their public key to `~/.ssh/authorized_keys` on the server:
 
@@ -139,7 +121,7 @@ You can get the fingerprint with:
 ssh-keygen -lf /path/to/key.pub
 ```
 
-### 6. Use Git
+### 5. Use Git
 
 ```bash
 # Clone
@@ -202,31 +184,6 @@ mgs repo list
 mgs repo remove <name>
 ```
 
-### `mgs acl`
-
-Manage access control permissions.
-
-```bash
-# Grant permission (read / write / admin)
-mgs acl grant <username> <repo> --perm <level>
-
-# Revoke permission
-mgs acl revoke <username> <repo>
-
-# List permissions for a repository
-mgs acl list <repo>
-```
-
-## Permission Model
-
-| Level | Description |
-|-------|-------------|
-| `read` | Clone and fetch |
-| `write` | Push (implies read) |
-| `admin` | Push + manage permissions (implies write) |
-
-Repository owners automatically have `admin` access, regardless of explicit permissions.
-
 ## Environment Variables
 
 | Variable | Description | Default |
@@ -261,14 +218,6 @@ CREATE TABLE repositories (
     created_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- Explicit permission grants
-CREATE TABLE permissions (
-    id          INTEGER PRIMARY KEY,
-    user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    repo_id     INTEGER NOT NULL REFERENCES repositories(id) ON DELETE CASCADE,
-    level       TEXT NOT NULL CHECK(level IN ('read', 'write', 'admin')),
-    UNIQUE(user_id, repo_id)
-);
 ```
 
 ## Building
