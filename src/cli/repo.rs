@@ -4,13 +4,14 @@ use anyhow::{Context, Result};
 use std::path::Path;
 
 use super::open_db;
-use crate::git::{init_bare_repo, normalize_repo_name, repo_disk_path, validate_repo_name};
+use crate::git::{check_git_commands, init_bare_repo, normalize_repo_name, repo_disk_path, validate_repo_name};
 
 /// Creates a new repository with a bare Git repo on disk.
 ///
 /// Uses DB-first atomicity: inserts the metadata row first, then initializes
 /// the bare repo. If disk init fails, the DB entry is rolled back.
 pub fn run_repo_create(data_dir: &Path, name: &str, owner: Option<&str>) -> Result<()> {
+    check_git_commands()?;
     let name = normalize_repo_name(name);
     validate_repo_name(name)?;
     let db = open_db(data_dir)?;

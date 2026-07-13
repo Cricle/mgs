@@ -80,6 +80,28 @@ pub fn init_bare_repo(path: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Checks that required git commands (`git`, `git-upload-pack`, `git-receive-pack`)
+/// are available on the system. Returns an error with the missing command name.
+pub fn check_git_commands() -> Result<()> {
+    for cmd in &["git", "git-upload-pack", "git-receive-pack"] {
+        // Use `which`/`command -v` to check existence, since git-upload-pack
+        // and git-receive-pack don't support --version.
+        let shell_cmd = if cfg!(target_os = "windows") {
+            format!("where {}", cmd)
+        } else {
+            format!("command -v {}", cmd)
+        };
+        let output = Command::new("sh")
+            .args(["-c", &shell_cmd])
+            .output();
+        match output {
+            Ok(o) if o.status.success() => {}
+            _ => bail!("required command '{}' not found in PATH", cmd),
+        }
+    }
+    Ok(())
+}
+
 /// Executes `git-upload-pack` for clone/fetch operations.
 ///
 /// Inherits stdin/stdout/stderr from the parent process (the SSH session),

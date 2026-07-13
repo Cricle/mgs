@@ -9,7 +9,7 @@ use std::env;
 use std::path::PathBuf;
 
 use crate::db::Database;
-use crate::git::{exec_git_receive_pack, exec_git_upload_pack, repo_disk_path, validate_repo_name};
+use crate::git::{check_git_commands, exec_git_receive_pack, exec_git_upload_pack, repo_disk_path, validate_repo_name};
 
 /// Parsed Git command from `SSH_ORIGINAL_COMMAND`.
 pub enum GitCommand {
@@ -60,6 +60,7 @@ pub fn parse_command(original: &str) -> Result<(GitCommand, String)> {
 /// 3. Look up user by fingerprint in the database
 /// 4. Execute the corresponding git pack process
 pub fn handle_ssh_command(fingerprint: &str) -> Result<()> {
+    check_git_commands()?;
     let original_cmd = env::var("SSH_ORIGINAL_COMMAND").context("SSH_ORIGINAL_COMMAND not set")?;
 
     let (git_cmd, repo_name) = parse_command(&original_cmd)?;

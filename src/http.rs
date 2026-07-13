@@ -222,6 +222,7 @@ async fn git_service_handler(
 
 /// Starts the HTTP server on the given address.
 pub async fn serve(data_dir: PathBuf, bind: &str) -> Result<()> {
+    crate::git::check_git_commands()?;
     let db_path = data_dir.join("mgs.db");
     let db = Database::open(&db_path)?;
 
