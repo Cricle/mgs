@@ -25,3 +25,23 @@ pub mod db;
 pub mod git;
 pub mod models;
 pub mod ssh;
+
+use std::path::PathBuf;
+
+/// Returns the user's home directory.
+///
+/// Tries `HOME` (Unix), `USERPROFILE` (Windows), then `HOMEDRIVE`+`HOMEPATH` (Windows fallback).
+pub fn home_dir() -> anyhow::Result<PathBuf> {
+    if let Ok(home) = std::env::var("HOME") {
+        return Ok(PathBuf::from(home));
+    }
+    if let Ok(profile) = std::env::var("USERPROFILE") {
+        return Ok(PathBuf::from(profile));
+    }
+    if let (Ok(drive), Ok(path)) = (std::env::var("HOMEDRIVE"), std::env::var("HOMEPATH")) {
+        return Ok(PathBuf::from(format!("{}{}", drive, path)));
+    }
+    anyhow::bail!(
+        "could not determine home directory (HOME, USERPROFILE, HOMEDRIVE+HOMEPATH all unset)"
+    )
+}
