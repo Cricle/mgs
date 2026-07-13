@@ -55,6 +55,23 @@ impl Database {
         }
     }
 
+    pub fn find_user_by_id(&self, id: i64) -> Result<Option<User>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, username, created_at FROM users WHERE id = ?1",
+        )?;
+        let mut rows = stmt.query_map(params![id], |row| {
+            Ok(User {
+                id: row.get(0)?,
+                username: row.get(1)?,
+                created_at: row.get(2)?,
+            })
+        })?;
+        match rows.next() {
+            Some(row) => Ok(Some(row?)),
+            None => Ok(None),
+        }
+    }
+
     pub fn find_user_by_fingerprint(&self, fingerprint: &str) -> Result<Option<User>> {
         let mut stmt = self.conn.prepare(
             "SELECT u.id, u.username, u.created_at FROM users u
