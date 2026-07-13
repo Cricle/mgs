@@ -10,7 +10,6 @@ use std::path::PathBuf;
 
 use crate::db::Database;
 use crate::git::{exec_git_receive_pack, exec_git_upload_pack, repo_disk_path, validate_repo_name};
-use crate::home_dir;
 
 /// Parsed Git command from `SSH_ORIGINAL_COMMAND`.
 enum GitCommand {
@@ -91,12 +90,17 @@ pub fn handle_ssh_command(fingerprint: &str) -> Result<()> {
 
 /// Returns the MGS data directory.
 ///
-/// Checks `MGS_HOME` env var first, falls back to `~/.mgs`.
+/// Checks `MGS_HOME` env var first, falls back to the directory
+/// containing the `mgs-ssh` binary.
 fn get_data_dir() -> Result<PathBuf> {
     if let Ok(home) = env::var("MGS_HOME") {
         return Ok(PathBuf::from(home));
     }
-    Ok(home_dir()?.join(".mgs"))
+    let exe = env::current_exe().context("failed to determine executable path")?;
+    let dir = exe
+        .parent()
+        .context("failed to determine executable directory")?;
+    Ok(dir.to_path_buf())
 }
 
 #[cfg(test)]

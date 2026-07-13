@@ -11,7 +11,6 @@ use clap::{Parser, Subcommand};
 use std::path::{Path, PathBuf};
 
 use crate::db::Database;
-use crate::home_dir;
 
 /// Opens the MGS database in the given data directory.
 pub(crate) fn open_db(data_dir: &Path) -> anyhow::Result<Database> {
@@ -104,12 +103,13 @@ impl Cli {
     /// Returns the resolved data directory path.
     ///
     /// Uses the `--data-dir` flag if provided, otherwise falls back to `$MGS_HOME`,
-    /// and finally `~/.mgs` (via `HOME`, `USERPROFILE`, or `HOMEDRIVE`+`HOMEPATH`).
+    /// and finally the directory containing the `mgs` binary.
     pub fn data_dir(&self) -> PathBuf {
         self.data_dir.clone().unwrap_or_else(|| {
-            home_dir()
-                .expect("could not determine home directory")
-                .join(".mgs")
+            let exe = std::env::current_exe().expect("failed to determine executable path");
+            exe.parent()
+                .expect("failed to determine executable directory")
+                .to_path_buf()
         })
     }
 }
