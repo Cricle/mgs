@@ -1,3 +1,8 @@
+//! CLI interface for the `mgs` administration tool.
+//!
+//! Defines the clap-based command hierarchy and dispatches to subcommand
+//! handlers in [`user`], [`repo`], [`acl`], and [`init`] modules.
+
 pub mod acl;
 pub mod init;
 pub mod repo;
@@ -8,11 +13,13 @@ use std::path::{Path, PathBuf};
 
 use crate::db::Database;
 
+/// Opens the MGS database in the given data directory.
 pub(crate) fn open_db(data_dir: &Path) -> anyhow::Result<Database> {
     let db_path = data_dir.join("mgs.db");
     Database::open(&db_path)
 }
 
+/// Top-level CLI definition parsed by clap.
 #[derive(Parser)]
 #[command(name = "mgs", about = "Mini Git Server")]
 pub struct Cli {
@@ -24,6 +31,7 @@ pub struct Cli {
     pub command: Command,
 }
 
+/// Available top-level subcommands.
 #[derive(Subcommand)]
 pub enum Command {
     /// Initialize mgs data directory and database
@@ -45,6 +53,7 @@ pub enum Command {
     },
 }
 
+/// User management subcommands.
 #[derive(Subcommand)]
 pub enum UserCommand {
     /// Add a new user with an SSH public key
@@ -65,6 +74,7 @@ pub enum UserCommand {
     },
 }
 
+/// SSH key management subcommands (nested under `user`).
 #[derive(Subcommand)]
 pub enum KeyCommand {
     /// Add an SSH key to a user
@@ -79,6 +89,7 @@ pub enum KeyCommand {
     Remove { fingerprint: String },
 }
 
+/// Repository management subcommands.
 #[derive(Subcommand)]
 pub enum RepoCommand {
     /// Create a new repository
@@ -94,6 +105,7 @@ pub enum RepoCommand {
     Remove { name: String },
 }
 
+/// Access control (permission) management subcommands.
 #[derive(Subcommand)]
 pub enum AclCommand {
     /// Grant permission to a user on a repository
@@ -111,6 +123,10 @@ pub enum AclCommand {
 }
 
 impl Cli {
+    /// Returns the resolved data directory path.
+    ///
+    /// Uses the `--data-dir` flag if provided, otherwise falls back to `$MGS_HOME`,
+    /// and finally `$HOME/.mgs`.
     pub fn data_dir(&self) -> PathBuf {
         self.data_dir.clone().unwrap_or_else(|| {
             let home = std::env::var("HOME").expect("HOME not set");

@@ -1,9 +1,15 @@
+//! Repository management CLI handlers.
+
 use anyhow::{Context, Result};
 use std::path::Path;
 
 use super::open_db;
 use crate::git::{init_bare_repo, normalize_repo_name, repo_disk_path, validate_repo_name};
 
+/// Creates a new repository with a bare Git repo on disk.
+///
+/// Uses DB-first atomicity: inserts the metadata row first, then initializes
+/// the bare repo. If disk init fails, the DB entry is rolled back.
 pub fn run_repo_create(data_dir: &Path, name: &str, owner: Option<&str>) -> Result<()> {
     let name = normalize_repo_name(name);
     validate_repo_name(name)?;
@@ -34,6 +40,7 @@ pub fn run_repo_create(data_dir: &Path, name: &str, owner: Option<&str>) -> Resu
     Ok(())
 }
 
+/// Lists all repositories with their owners.
 pub fn run_repo_list(data_dir: &Path) -> Result<()> {
     let db = open_db(data_dir)?;
     let repos = db.list_repos()?;
@@ -51,6 +58,10 @@ pub fn run_repo_list(data_dir: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Removes a repository from both disk and the database.
+///
+/// Deletes the bare repo directory first, then the DB entry, to avoid
+/// orphaned disk artifacts on partial failure.
 pub fn run_repo_remove(data_dir: &Path, name: &str) -> Result<()> {
     let db = open_db(data_dir)?;
     let disk_path = repo_disk_path(data_dir, name);

@@ -1,3 +1,9 @@
+//! SSH command handling for `mgs-ssh`.
+//!
+//! Parses `SSH_ORIGINAL_COMMAND` (set by `sshd`), identifies the user by
+//! SSH key fingerprint, checks permissions, and delegates to the appropriate
+//! `git-upload-pack` or `git-receive-pack` process.
+
 use anyhow::{Context, Result, bail};
 use std::env;
 use std::path::PathBuf;
@@ -7,19 +13,22 @@ use crate::db::Database;
 use crate::git::{exec_git_receive_pack, exec_git_upload_pack, repo_disk_path, validate_repo_name};
 use crate::models::PermLevel;
 
-/// Parsed git command from SSH_ORIGINAL_COMMAND
+/// Parsed Git command from `SSH_ORIGINAL_COMMAND`.
 enum GitCommand {
-    UploadPack,  // clone / fetch
-    ReceivePack, // push
+    /// `git-upload-pack` — used by `git clone` and `git fetch`.
+    UploadPack,
+    /// `git-receive-pack` — used by `git push`.
+    ReceivePack,
 }
 
-/// Parse SSH_ORIGINAL_COMMAND into (GitCommand, repo_path_string).
+/// Parses `SSH_ORIGINAL_COMMAND` into a [`GitCommand`] and normalized repository name.
+///
 /// Expected formats:
-///   git-upload-pack 'repo.git'
-///   git-receive-pack 'repo.git'
-///   git-upload-pack 'repo'    (without .git suffix)
+/// - `git-upload-pack 'repo.git'`
+/// - `git-receive-pack 'repo'`
+///
+/// Handles single/double/no quotes and strips trailing `.git` from the repo name.
 fn parse_command(original: &str) -> Result<(GitCommand, String)> {
-    // Simple parsing: split on whitespace, handle optional quotes
     let original = original.trim();
     let parts: Vec<&str> = original.splitn(3, ' ').collect();
     if parts.len() != 2 {
@@ -29,7 +38,6 @@ fn parse_command(original: &str) -> Result<(GitCommand, String)> {
     let cmd = parts[0];
     let mut repo_arg = parts[1].trim_matches('\'').trim_matches('"');
 
-    // Strip trailing .git if present for storage lookup (we store without in DB)
     if repo_arg.ends_with(".git") {
         repo_arg = &repo_arg[..repo_arg.len() - 4];
     }
@@ -43,8 +51,17 @@ fn parse_command(original: &str) -> Result<(GitCommand, String)> {
     Ok((git_cmd, repo_arg.to_string()))
 }
 
-/// Main entry point for mgs-ssh.
-/// `fingerprint` comes from the command-line arg passed by authorized_keys.
+/// Main entry point for the `mgs-ssh` binary.
+///
+/// Called by `sshd` via `authorized_keys` `command=` directive. The `fingerprint`
+/// argument identifies the connecting user's SSH key.
+///
+/// Flow:
+/// 1. Read `SSH_ORIGINAL_COMMAND` from environment
+/// 2. Parse the git command and repository name
+/// 3. Look up user by fingerprint in the database
+/// 4. Check permission (read for clone/fetch, write for push)
+/// 5. Execute the corresponding git pack process
 pub fn handle_ssh_command(fingerprint: &str) -> Result<()> {
     let original_cmd = env::var("SSH_ORIGINAL_COMMAND").context("SSH_ORIGINAL_COMMAND not set")?;
 
@@ -81,6 +98,9 @@ pub fn handle_ssh_command(fingerprint: &str) -> Result<()> {
     }
 }
 
+/// Returns the MGS data directory.
+///
+/// Checks `MGS_HOME` env var first, falls back to `$HOME/.mgs`.
 fn get_data_dir() -> Result<PathBuf> {
     if let Ok(home) = env::var("MGS_HOME") {
         return Ok(PathBuf::from(home));

@@ -1,9 +1,14 @@
+//! Access control (permission) management CLI handlers.
+
 use anyhow::{Context, Result};
 use std::path::Path;
 
 use super::open_db;
 use crate::models::PermLevel;
 
+/// Grants a permission level to a user on a repository.
+///
+/// If a grant already exists, the level is updated (upsert).
 pub fn run_acl_grant(data_dir: &Path, username: &str, repo_name: &str, perm: &str) -> Result<()> {
     let level = PermLevel::parse(perm).with_context(|| {
         format!(
@@ -31,6 +36,7 @@ pub fn run_acl_grant(data_dir: &Path, username: &str, repo_name: &str, perm: &st
     Ok(())
 }
 
+/// Revokes a user's permission grant on a repository.
 pub fn run_acl_revoke(data_dir: &Path, username: &str, repo_name: &str) -> Result<()> {
     let db = open_db(data_dir)?;
 
@@ -49,6 +55,7 @@ pub fn run_acl_revoke(data_dir: &Path, username: &str, repo_name: &str) -> Resul
     Ok(())
 }
 
+/// Lists the owner and all explicit permission grants for a repository.
 pub fn run_acl_list(data_dir: &Path, repo_name: &str) -> Result<()> {
     let db = open_db(data_dir)?;
     let repo = db

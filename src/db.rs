@@ -1,14 +1,28 @@
+//! SQLite database layer.
+//!
+//! Provides the [`Database`] struct with methods for managing users,
+//! SSH keys, repositories, and permissions. Uses WAL journal mode
+//! and foreign key constraints.
+
 use anyhow::{Context, Result};
 use rusqlite::{Connection, params};
 use std::path::Path;
 
 use crate::models::{PermLevel, Repository, SshKey, User};
 
+/// MGS metadata database backed by SQLite.
+///
+/// Opens (or creates) a SQLite database at the given path and applies
+/// the schema migration. Uses WAL mode for concurrent read access.
 pub struct Database {
     conn: Connection,
 }
 
 impl Database {
+    /// Opens or creates the database at `db_path`.
+    ///
+    /// Enables WAL journal mode and foreign keys, then runs the
+    /// schema migration (`migrations/001_init.sql`).
     pub fn open(db_path: &Path) -> Result<Self> {
         let conn = Connection::open(db_path)
             .with_context(|| format!("failed to open database: {}", db_path.display()))?;
@@ -20,6 +34,10 @@ impl Database {
 
     // --- Users ---
 
+    /// Creates a new user with the given `username`.
+    ///
+    /// Returns the created [`User`] with its assigned `id` and `created_at`.
+    /// Fails if `username` already exists (UNIQUE constraint).
     pub fn create_user(&self, username: &str) -> Result<User> {
         self.conn.execute(
             "INSERT INTO users (username) VALUES (?1)",
@@ -40,6 +58,9 @@ impl Database {
         Ok(user)
     }
 
+    /// Finds a user by their exact username.
+    ///
+    /// Returns `None` if no user with that name exists.
     pub fn find_user_by_username(&self, username: &str) -> Result<Option<User>> {
         let mut stmt = self
             .conn
@@ -57,6 +78,7 @@ impl Database {
         }
     }
 
+    /// Finds a user by their numeric ID.
     pub fn find_user_by_id(&self, id: i64) -> Result<Option<User>> {
         let mut stmt = self
             .conn
@@ -74,6 +96,10 @@ impl Database {
         }
     }
 
+    /// Finds the user who owns the SSH key with the given `fingerprint`.
+    ///
+    /// Used by `mgs-ssh` to identify the connecting user from the
+    /// fingerprint passed via `authorized_keys`.
     pub fn find_user_by_fingerprint(&self, fingerprint: &str) -> Result<Option<User>> {
         let mut stmt = self.conn.prepare(
             "SELECT u.id, u.username, u.created_at FROM users u
@@ -93,6 +119,7 @@ impl Database {
         }
     }
 
+    /// Lists all users, ordered by username.
     pub fn list_users(&self) -> Result<Vec<User>> {
         let mut stmt = self
             .conn
@@ -107,6 +134,9 @@ impl Database {
         Ok(rows.collect::<Result<Vec<_>, _>>()?)
     }
 
+    /// Deletes a user by username. Returns `true` if a row was removed.
+    ///
+    /// Cascades to delete all associated SSH keys and permission grants.
     pub fn delete_user(&self, username: &str) -> Result<bool> {
         let n = self
             .conn
@@ -116,6 +146,10 @@ impl Database {
 
     // --- SSH Keys ---
 
+    /// Adds an SSH public key for a user.
+    ///
+    /// The `fingerprint` should be computed via [`crate::auth::compute_fingerprint`].
+    /// Fails if the `public_key` or `fingerprint` already exists (UNIQUE constraints).
     pub fn add_ssh_key(
         &self,
         user_id: i64,
@@ -145,6 +179,7 @@ impl Database {
         Ok(key)
     }
 
+    /// Lists all SSH keys for a user, ordered by ID.
     pub fn list_ssh_keys(&self, user_id: i64) -> Result<Vec<SshKey>> {
         let mut stmt = self.conn.prepare(
             "SELECT id, user_id, key_type, public_key, fingerprint, created_at
@@ -163,6 +198,7 @@ impl Database {
         Ok(rows.collect::<Result<Vec<_>, _>>()?)
     }
 
+    /// Deletes an SSH key by its SHA256 fingerprint. Returns `true` if removed.
     pub fn delete_ssh_key(&self, fingerprint: &str) -> Result<bool> {
         let n = self.conn.execute(
             "DELETE FROM ssh_keys WHERE fingerprint = ?1",
@@ -173,6 +209,10 @@ impl Database {
 
     // --- Repositories ---
 
+    /// Creates a new repository with the given `name` and `owner_id`.
+    ///
+    /// The name should be normalized (no `.git` suffix) before calling this.
+    /// Fails if a repository with that name already exists.
     pub fn create_repo(&self, name: &str, owner_id: i64) -> Result<Repository> {
         self.conn.execute(
             "INSERT INTO repositories (name, owner_id) VALUES (?1, ?2)",
@@ -194,6 +234,7 @@ impl Database {
         Ok(repo)
     }
 
+    /// Finds a repository by its exact name.
     pub fn find_repo(&self, name: &str) -> Result<Option<Repository>> {
         let mut stmt = self
             .conn
@@ -212,6 +253,7 @@ impl Database {
         }
     }
 
+    /// Lists all repositories, ordered by name.
     pub fn list_repos(&self) -> Result<Vec<Repository>> {
         let mut stmt = self
             .conn
@@ -227,6 +269,10 @@ impl Database {
         Ok(rows.collect::<Result<Vec<_>, _>>()?)
     }
 
+    /// Deletes a repository by name. Returns `true` if removed.
+    ///
+    /// Note: does NOT delete the bare repo on disk. The caller must
+    /// handle disk cleanup separately.
     pub fn delete_repo(&self, name: &str) -> Result<bool> {
         let n = self
             .conn
@@ -236,6 +282,9 @@ impl Database {
 
     // --- Permissions ---
 
+    /// Grants a permission level to a user on a repository.
+    ///
+    /// If a grant already exists for this (user, repo) pair, the level is updated (upsert).
     pub fn grant_permission(&self, user_id: i64, repo_id: i64, level: &PermLevel) -> Result<()> {
         self.conn.execute(
             "INSERT INTO permissions (user_id, repo_id, level) VALUES (?1, ?2, ?3)
@@ -245,6 +294,7 @@ impl Database {
         Ok(())
     }
 
+    /// Revokes a permission grant. Returns `true` if a row was removed.
     pub fn revoke_permission(&self, user_id: i64, repo_id: i64) -> Result<bool> {
         let n = self.conn.execute(
             "DELETE FROM permissions WHERE user_id = ?1 AND repo_id = ?2",
@@ -253,10 +303,11 @@ impl Database {
         Ok(n > 0)
     }
 
-    /// Get effective permission for a user on a repo.
-    /// Returns None if user has no access (and is not owner).
+    /// Gets the effective permission for a user on a repository.
+    ///
+    /// Returns `Some(PermLevel::Admin)` if the user is the repository owner,
+    /// otherwise returns the explicitly granted level, or `None` if no access.
     pub fn get_permission(&self, user_id: i64, repo_id: i64) -> Result<Option<PermLevel>> {
-        // Check if owner first
         let is_owner = self
             .conn
             .query_row(
@@ -283,6 +334,9 @@ impl Database {
         }
     }
 
+    /// Lists all explicit permission grants for a repository.
+    ///
+    /// Does not include the owner's implicit admin. Returns `(User, PermLevel)` pairs.
     pub fn list_permissions(&self, repo_id: i64) -> Result<Vec<(User, PermLevel)>> {
         let mut stmt = self.conn.prepare(
             "SELECT u.id, u.username, u.created_at, p.level

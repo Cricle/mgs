@@ -1,11 +1,23 @@
+//! Authentication and authorization.
+//!
+//! Handles SSH public key parsing, fingerprint computation (via `ssh-keygen`),
+//! and permission checking against the database.
+
 use anyhow::{Context, Result, bail};
 use std::process::Command;
 
 use crate::db::Database;
 use crate::models::PermLevel;
 
-/// Parse an SSH public key file line (e.g. "ssh-ed25519 AAAA... comment").
-/// Returns (key_type, public_key_base64).
+/// Parses an SSH public key line into `(key_type, public_key_base64)`.
+///
+/// Expected format: `<type> <base64> [comment]`
+///
+/// Supported key types: `ssh-ed25519`, `ssh-rsa`, `ecdsa-sha2-nistp256`,
+/// `ecdsa-sha2-nistp384`, `ecdsa-sha2-nistp521`.
+///
+/// Returns an error for empty lines, comments (`#`), unsupported types,
+/// or keys shorter than 10 characters.
 pub fn parse_ssh_public_key(line: &str) -> Result<(String, String)> {
     let line = line.trim();
     if line.is_empty() || line.starts_with('#') {
@@ -18,7 +30,6 @@ pub fn parse_ssh_public_key(line: &str) -> Result<(String, String)> {
     let key_type = parts[0].to_string();
     let public_key = parts[1].to_string();
 
-    // Validate key type
     match key_type.as_str() {
         "ssh-ed25519"
         | "ssh-rsa"
@@ -28,7 +39,6 @@ pub fn parse_ssh_public_key(line: &str) -> Result<(String, String)> {
         _ => bail!("unsupported key type: {}", key_type),
     }
 
-    // Basic base64 length check
     if public_key.len() < 10 {
         bail!("public key too short");
     }
@@ -36,7 +46,12 @@ pub fn parse_ssh_public_key(line: &str) -> Result<(String, String)> {
     Ok((key_type, public_key))
 }
 
-/// Compute SHA256 fingerprint of an SSH public key using ssh-keygen.
+/// Computes the SHA256 fingerprint of an SSH public key using `ssh-keygen -lf -`.
+///
+/// Reads the full public key line (type + base64 + optional comment) from stdin.
+/// Returns the fingerprint in the format `SHA256:<base64>`.
+///
+/// Uses a separate thread for stdin writes to avoid pipe buffer deadlock.
 pub fn compute_fingerprint(public_key_line: &str) -> Result<String> {
     let mut child = Command::new("ssh-keygen")
         .args(["-lf", "-"])
@@ -52,7 +67,6 @@ pub fn compute_fingerprint(public_key_line: &str) -> Result<String> {
         .take()
         .context("failed to open ssh-keygen stdin")?;
     let data = public_key_line.to_owned();
-    // Write stdin in a separate thread to avoid potential deadlock
     let handle = std::thread::spawn(move || {
         let _ = stdin.write_all(data.as_bytes());
     });
@@ -66,7 +80,6 @@ pub fn compute_fingerprint(public_key_line: &str) -> Result<String> {
     }
 
     let stdout = String::from_utf8_lossy(&result.stdout);
-    // Output format: "256 SHA256:xxxx comment (ED25519)"
     let fingerprint = stdout
         .split_whitespace()
         .find(|s| s.starts_with("SHA256:"))
@@ -75,8 +88,11 @@ pub fn compute_fingerprint(public_key_line: &str) -> Result<String> {
     Ok(fingerprint.to_string())
 }
 
-/// Check if a user has at least `required` permission on a repo.
-/// Returns Ok(()) if allowed, Err if denied.
+/// Checks if a user has at least `required` permission on a repository.
+///
+/// Looks up the effective permission via [`Database::get_permission`], which
+/// returns implicit `Admin` for repo owners. Returns `Ok(())` if the
+/// requirement is satisfied, or an error describing the denial.
 pub fn check_permission(
     db: &Database,
     user_id: i64,

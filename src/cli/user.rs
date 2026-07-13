@@ -1,3 +1,5 @@
+//! User and SSH key management CLI handlers.
+
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
@@ -6,6 +8,10 @@ use super::open_db;
 use crate::auth::{compute_fingerprint, parse_ssh_public_key};
 use crate::git::validate_username;
 
+/// Creates a new user with an SSH public key.
+///
+/// Validates the username, reads and parses the key file, computes its fingerprint,
+/// then inserts both the user and key into the database.
 pub fn run_user_add(data_dir: &Path, username: &str, key_path: &Path) -> Result<()> {
     validate_username(username)?;
     let db = open_db(data_dir)?;
@@ -29,6 +35,7 @@ pub fn run_user_add(data_dir: &Path, username: &str, key_path: &Path) -> Result<
     Ok(())
 }
 
+/// Lists all registered users with their SSH key counts.
 pub fn run_user_list(data_dir: &Path) -> Result<()> {
     let db = open_db(data_dir)?;
     let users = db.list_users()?;
@@ -43,6 +50,7 @@ pub fn run_user_list(data_dir: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Removes a user and all associated SSH keys and permission grants.
 pub fn run_user_remove(data_dir: &Path, username: &str) -> Result<()> {
     let db = open_db(data_dir)?;
     if db.delete_user(username)? {
@@ -53,6 +61,7 @@ pub fn run_user_remove(data_dir: &Path, username: &str) -> Result<()> {
     Ok(())
 }
 
+/// Adds an additional SSH key to an existing user.
 pub fn run_key_add(data_dir: &Path, username: &str, key_path: &Path) -> Result<()> {
     let db = open_db(data_dir)?;
     let user = db
@@ -69,6 +78,7 @@ pub fn run_key_add(data_dir: &Path, username: &str, key_path: &Path) -> Result<(
     Ok(())
 }
 
+/// Lists all SSH keys for a user, showing type, fingerprint, and public key.
 pub fn run_key_list(data_dir: &Path, username: &str) -> Result<()> {
     let db = open_db(data_dir)?;
     let user = db
@@ -86,6 +96,7 @@ pub fn run_key_list(data_dir: &Path, username: &str) -> Result<()> {
     Ok(())
 }
 
+/// Removes an SSH key by its SHA256 fingerprint.
 pub fn run_key_remove(data_dir: &Path, fingerprint: &str) -> Result<()> {
     let db = open_db(data_dir)?;
     if db.delete_ssh_key(fingerprint)? {

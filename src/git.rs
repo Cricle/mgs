@@ -1,8 +1,16 @@
+//! Git repository operations.
+//!
+//! Provides validation, bare repo initialization, and execution of
+//! `git-upload-pack` / `git-receive-pack` for SSH-based Git transport.
+
 use anyhow::{Context, Result, bail};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-/// Validate repository name: only [a-zA-Z0-9/_.-] allowed.
+/// Validates a repository name.
+///
+/// Allowed characters: `[a-zA-Z0-9/_.-]`. Rejects names containing `..`
+/// (path traversal) or empty strings.
 pub fn validate_repo_name(name: &str) -> Result<()> {
     if name.is_empty() {
         bail!("repository name cannot be empty");
@@ -18,13 +26,18 @@ pub fn validate_repo_name(name: &str) -> Result<()> {
     Ok(())
 }
 
-/// Normalize a repository name by stripping any trailing `.git` suffix.
-/// This ensures consistent storage regardless of whether the user includes `.git`.
+/// Normalizes a repository name by stripping any trailing `.git` suffix.
+///
+/// This ensures consistent storage regardless of whether the user includes `.git`:
+/// - `"team/project.git"` → `"team/project"`
+/// - `"team/project"` → `"team/project"`
 pub fn normalize_repo_name(name: &str) -> &str {
     name.strip_suffix(".git").unwrap_or(name)
 }
 
-/// Validate username: only [a-zA-Z0-9_-] allowed.
+/// Validates a username.
+///
+/// Allowed characters: `[a-zA-Z0-9_-]`. Rejects empty strings.
 pub fn validate_username(name: &str) -> Result<()> {
     if name.is_empty() {
         bail!("username cannot be empty");
@@ -37,7 +50,9 @@ pub fn validate_username(name: &str) -> Result<()> {
     Ok(())
 }
 
-/// Get the disk path for a repository.
+/// Returns the on-disk path for a bare repository.
+///
+/// Constructs `<data_dir>/repos/<repo_name>.git`, appending `.git` if not present.
 pub fn repo_disk_path(data_dir: &Path, repo_name: &str) -> PathBuf {
     let mut path = data_dir.join("repos").join(repo_name);
     if !path.to_string_lossy().ends_with(".git") {
@@ -46,7 +61,9 @@ pub fn repo_disk_path(data_dir: &Path, repo_name: &str) -> PathBuf {
     path
 }
 
-/// Initialize a bare git repository at the given path.
+/// Initializes a bare Git repository at `path` via `git init --bare`.
+///
+/// Fails if the path already exists.
 pub fn init_bare_repo(path: &Path) -> Result<()> {
     if path.exists() {
         bail!("repository already exists at {}", path.display());
@@ -63,7 +80,10 @@ pub fn init_bare_repo(path: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Execute git-upload-pack (for clone/fetch) with stdin/stdout piped.
+/// Executes `git-upload-pack` for clone/fetch operations.
+///
+/// Inherits stdin/stdout/stderr from the parent process (the SSH session),
+/// allowing the Git client to communicate directly with the pack process.
 pub fn exec_git_upload_pack(repo_path: &Path) -> Result<()> {
     let status = Command::new("git-upload-pack")
         .arg(repo_path)
@@ -79,7 +99,10 @@ pub fn exec_git_upload_pack(repo_path: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Execute git-receive-pack (for push) with stdin/stdout piped.
+/// Executes `git-receive-pack` for push operations.
+///
+/// Inherits stdin/stdout/stderr from the parent process (the SSH session),
+/// allowing the Git client to communicate directly with the pack process.
 pub fn exec_git_receive_pack(repo_path: &Path) -> Result<()> {
     let status = Command::new("git-receive-pack")
         .arg(repo_path)
