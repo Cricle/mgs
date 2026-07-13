@@ -27,7 +27,7 @@ pub(crate) fn open_db(data_dir: &Path) -> anyhow::Result<Database> {
 #[derive(Parser)]
 #[command(name = "mgs", about = "Mini Git Server")]
 pub struct Cli {
-    /// Data directory (default: ~/.mgs)
+    /// Data directory (default: binary directory)
     #[arg(long, env = "MGS_HOME")]
     pub data_dir: Option<PathBuf>,
 
