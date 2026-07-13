@@ -91,9 +91,7 @@ pub fn check_git_commands() -> Result<()> {
         } else {
             format!("command -v {}", cmd)
         };
-        let output = Command::new("sh")
-            .args(["-c", &shell_cmd])
-            .output();
+        let output = Command::new("sh").args(["-c", &shell_cmd]).output();
         match output {
             Ok(o) if o.status.success() => {}
             _ => bail!("required command '{}' not found in PATH", cmd),

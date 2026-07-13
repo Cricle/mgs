@@ -9,7 +9,10 @@ use std::env;
 use std::path::PathBuf;
 
 use crate::db::Database;
-use crate::git::{check_git_commands, exec_git_receive_pack, exec_git_upload_pack, repo_disk_path, validate_repo_name};
+use crate::git::{
+    check_git_commands, exec_git_receive_pack, exec_git_upload_pack, repo_disk_path,
+    validate_repo_name,
+};
 
 /// Parsed Git command from `SSH_ORIGINAL_COMMAND`.
 pub enum GitCommand {
