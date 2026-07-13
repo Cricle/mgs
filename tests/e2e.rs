@@ -115,11 +115,7 @@ fn git_cmd(home: &Path, wrapper: &Path, args: &[&str]) -> String {
     stdout + &stderr
 }
 
-fn git_cmd_raw(
-    home: &Path,
-    wrapper: &Path,
-    args: &[&str],
-) -> std::process::Output {
+fn git_cmd_raw(home: &Path, wrapper: &Path, args: &[&str]) -> std::process::Output {
     Command::new("git")
         .env("GIT_SSH_COMMAND", format!("'{}'", wrapper.display()))
         .current_dir(home)
@@ -583,11 +579,7 @@ fn test_concurrent_pushes() {
 
     // dir2 must pull before pushing
     let b2 = current_branch(&dir2);
-    git_cmd(
-        &dir2,
-        &wrapper,
-        &["pull", "--no-rebase", "origin", &b2],
-    );
+    git_cmd(&dir2, &wrapper, &["pull", "--no-rebase", "origin", &b2]);
     git_commit(&dir2, "from_dir2.txt", "dir2", "dir2");
     git_cmd(&dir2, &wrapper, &["push", "origin", &b2]);
 
