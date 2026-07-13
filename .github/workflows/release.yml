@@ -1,0 +1,121 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            archive: tar.gz
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            archive: tar.gz
+            use-cross: true
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            archive: tar.gz
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            archive: tar.gz
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            archive: zip
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install cross
+        if: matrix.use-cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
+
+      - name: Build (cross)
+        if: matrix.use-cross
+        run: cross build --release --target ${{ matrix.target }}
+
+      - name: Build (cargo)
+        if: ${{ !matrix.use-cross }}
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Install UPX (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y upx-ucl
+
+      - name: Install UPX (macOS)
+        if: runner.os == 'macOS'
+        run: brew install upx || echo "UPX not available on macOS, skipping"
+
+      - name: Install UPX (Windows)
+        if: runner.os == 'Windows'
+        run: choco install upx -y || echo "UPX install failed, skipping"
+
+      - name: Compress with UPX (Linux/macOS)
+        if: runner.os != 'Windows'
+        continue-on-error: true
+        run: |
+          for bin in mgs mgs-ssh; do
+            upx -5 target/${{ matrix.target }}/release/$bin || echo "UPX compression failed for $bin (may not support this platform)"
+          done
+
+      - name: Compress with UPX (Windows)
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        run: |
+          foreach ($bin in @("mgs.exe", "mgs-ssh.exe")) {
+            upx -5 "target/${{ matrix.target }}/release/$bin" || Write-Host "UPX compression failed for $bin"
+          }
+
+      - name: Package (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          cd target/${{ matrix.target }}/release
+          tar czf ../../../mgs-${{ github.ref_name }}-${{ matrix.target }}.tar.gz mgs mgs-ssh
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cd target/${{ matrix.target }}/release
+          7z a ../../../mgs-${{ github.ref_name }}-${{ matrix.target }}.zip mgs.exe mgs-ssh.exe
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mgs-${{ matrix.target }}
+          path: mgs-${{ github.ref_name }}-${{ matrix.target }}.*
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            mgs-*.tar.gz
+            mgs-*.zip
