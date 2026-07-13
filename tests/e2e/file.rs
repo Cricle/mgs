@@ -4,7 +4,6 @@ use std::fs;
 #[test]
 fn test_file_modification_roundtrip() {
     let home = test_home();
-    mgs(&home, &["init"]);
 
     let key_path = generate_key(&home, "modifier");
     let fp = key_fingerprint(&key_path);
@@ -71,7 +70,6 @@ fn test_file_modification_roundtrip() {
 #[test]
 fn test_binary_file_roundtrip() {
     let home = test_home();
-    mgs(&home, &["init"]);
 
     let key_path = generate_key(&home, "binary_user");
     let fp = key_fingerprint(&key_path);
@@ -126,7 +124,6 @@ fn test_binary_file_roundtrip() {
 #[test]
 fn test_special_filenames() {
     let home = test_home();
-    mgs(&home, &["init"]);
 
     let key_path = generate_key(&home, "special_user");
     let fp = key_fingerprint(&key_path);
@@ -195,7 +192,6 @@ fn test_special_filenames() {
 #[test]
 fn test_deep_directory_structure() {
     let home = test_home();
-    mgs(&home, &["init"]);
 
     let key_path = generate_key(&home, "deep_user");
     let fp = key_fingerprint(&key_path);
@@ -252,7 +248,6 @@ fn test_deep_directory_structure() {
 #[test]
 fn test_large_file_roundtrip() {
     let home = test_home();
-    mgs(&home, &["init"]);
 
     let key_path = generate_key(&home, "large_user");
     let fp = key_fingerprint(&key_path);
@@ -308,7 +303,6 @@ fn test_large_file_roundtrip() {
 #[test]
 fn test_many_small_commits() {
     let home = test_home();
-    mgs(&home, &["init"]);
 
     let key_path = generate_key(&home, "many_user");
     let fp = key_fingerprint(&key_path);

@@ -1,6 +1,5 @@
 //! Integration tests for the `mgs` CLI.
 
-mod init;
 mod repo;
 mod user;
 mod workflow;

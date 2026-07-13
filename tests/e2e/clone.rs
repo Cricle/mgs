@@ -4,7 +4,6 @@ use std::fs;
 #[test]
 fn test_clone_empty_repo() {
     let home = test_home();
-    mgs(&home, &["init"]);
 
     let key_path = generate_key(&home, "user1");
     let fp = key_fingerprint(&key_path);
@@ -29,7 +28,6 @@ fn test_clone_empty_repo() {
 #[test]
 fn test_clone_with_dot_git_suffix() {
     let home = test_home();
-    mgs(&home, &["init"]);
 
     let key_path = generate_key(&home, "suffix_user");
     let fp = key_fingerprint(&key_path);

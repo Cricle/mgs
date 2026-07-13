@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::Parser;
 use mgs::cli::{Cli, Command, KeyCommand, RepoCommand, UserCommand};
-use mgs::cli::{init, repo, user};
+use mgs::cli::{repo, user};
 
 fn main() {
     if let Err(e) = run() {
@@ -15,7 +15,6 @@ fn run() -> Result<()> {
     let data_dir = cli.data_dir();
 
     match cli.command {
-        Command::Init => init::run_init(&data_dir),
         Command::User { command } => match command {
             UserCommand::Add { username, key } => user::run_user_add(&data_dir, &username, &key),
             UserCommand::List => user::run_user_list(&data_dir),

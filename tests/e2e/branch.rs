@@ -4,7 +4,6 @@ use std::fs;
 #[test]
 fn test_branch_operations() {
     let home = test_home();
-    mgs(&home, &["init"]);
 
     let key_path = generate_key(&home, "brancher");
     let fp = key_fingerprint(&key_path);
@@ -73,7 +72,6 @@ fn test_branch_operations() {
 #[test]
 fn test_tag_operations() {
     let home = test_home();
-    mgs(&home, &["init"]);
 
     let key_path = generate_key(&home, "tagger");
     let fp = key_fingerprint(&key_path);

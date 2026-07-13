@@ -4,7 +4,6 @@ use std::fs;
 #[test]
 fn test_nested_repo_name() {
     let home = test_home();
-    mgs(&home, &["init"]);
 
     let key_path = generate_key(&home, "nested_user");
     let fp = key_fingerprint(&key_path);
@@ -55,7 +54,6 @@ fn test_nested_repo_name() {
 #[test]
 fn test_multiple_repos_same_user() {
     let home = test_home();
-    mgs(&home, &["init"]);
 
     let key_path = generate_key(&home, "multi_repo_user");
     let fp = key_fingerprint(&key_path);
@@ -119,7 +117,6 @@ fn test_multiple_repos_same_user() {
 #[test]
 fn test_re_clone_after_push() {
     let home = test_home();
-    mgs(&home, &["init"]);
 
     let key_path = generate_key(&home, "reclone_user");
     let fp = key_fingerprint(&key_path);

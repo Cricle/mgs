@@ -3,17 +3,22 @@
 //! Defines the clap-based command hierarchy and dispatches to subcommand
 //! handlers in [`user`], [`repo`], and [`init`] modules.
 
-pub mod init;
 pub mod repo;
 pub mod user;
 
+use anyhow::Context;
 use clap::{Parser, Subcommand};
 use std::path::{Path, PathBuf};
 
 use crate::db::Database;
 
-/// Opens the MGS database in the given data directory.
+/// Ensures the data directory exists and opens the database.
+///
+/// Creates `data_dir` and `data_dir/repos` if they don't exist (idempotent).
 pub(crate) fn open_db(data_dir: &Path) -> anyhow::Result<Database> {
+    let repos_dir = data_dir.join("repos");
+    std::fs::create_dir_all(&repos_dir)
+        .with_context(|| format!("failed to create {}", repos_dir.display()))?;
     let db_path = data_dir.join("mgs.db");
     Database::open(&db_path)
 }
@@ -33,8 +38,6 @@ pub struct Cli {
 /// Available top-level subcommands.
 #[derive(Subcommand)]
 pub enum Command {
-    /// Initialize mgs data directory and database
-    Init,
     /// Manage users
     User {
         #[command(subcommand)]

@@ -5,7 +5,6 @@ use std::path::PathBuf;
 #[test]
 fn test_user_remove_key_still_works() {
     let home = test_home();
-    mgs(&home, &["init"]);
 
     // Create user with two keys
     let key1 = generate_key(&home, "rk_key1");

@@ -4,7 +4,6 @@ use std::fs;
 #[test]
 fn test_fetch_after_push() {
     let home = test_home();
-    mgs(&home, &["init"]);
 
     let key_path = generate_key(&home, "fetcher");
     let fp = key_fingerprint(&key_path);
@@ -70,7 +69,6 @@ fn test_fetch_after_push() {
 #[test]
 fn test_pull_with_merge() {
     let home = test_home();
-    mgs(&home, &["init"]);
 
     let key_path = generate_key(&home, "puller");
     let fp = key_fingerprint(&key_path);
@@ -131,7 +129,6 @@ fn test_pull_with_merge() {
 #[test]
 fn test_fetch_all_branches() {
     let home = test_home();
-    mgs(&home, &["init"]);
 
     let key_path = generate_key(&home, "fetchall_user");
     let fp = key_fingerprint(&key_path);

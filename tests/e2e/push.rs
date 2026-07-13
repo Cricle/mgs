@@ -4,7 +4,6 @@ use std::fs;
 #[test]
 fn test_push_and_clone_roundtrip() {
     let home = test_home();
-    mgs(&home, &["init"]);
 
     let key_path = generate_key(&home, "pusher");
     let fp = key_fingerprint(&key_path);
@@ -37,7 +36,6 @@ fn test_push_and_clone_roundtrip() {
 #[test]
 fn test_push_multiple_commits_and_clone() {
     let home = test_home();
-    mgs(&home, &["init"]);
 
     let key_path = generate_key(&home, "dev");
     let fp = key_fingerprint(&key_path);
@@ -86,7 +84,6 @@ fn test_push_multiple_commits_and_clone() {
 #[test]
 fn test_concurrent_pushes() {
     let home = test_home();
-    mgs(&home, &["init"]);
 
     let key_path = generate_key(&home, "concurrent");
     let fp = key_fingerprint(&key_path);
@@ -141,7 +138,6 @@ fn test_concurrent_pushes() {
 #[test]
 fn test_push_non_fast_forward_rejected() {
     let home = test_home();
-    mgs(&home, &["init"]);
 
     let key_path = generate_key(&home, "nff_user");
     let fp = key_fingerprint(&key_path);

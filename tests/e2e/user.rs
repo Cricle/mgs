@@ -4,7 +4,6 @@ use std::fs;
 #[test]
 fn test_reject_unauthenticated_user() {
     let home = test_home();
-    mgs(&home, &["init"]);
 
     let key_path = generate_key(&home, "known");
     mgs(
@@ -30,7 +29,6 @@ fn test_reject_unauthenticated_user() {
 #[test]
 fn test_reject_nonexistent_repo() {
     let home = test_home();
-    mgs(&home, &["init"]);
 
     let key_path = generate_key(&home, "user2");
     let fp = key_fingerprint(&key_path);
@@ -56,7 +54,6 @@ fn test_reject_nonexistent_repo() {
 #[test]
 fn test_reject_invalid_repo_name() {
     let home = test_home();
-    mgs(&home, &["init"]);
 
     let key_path = generate_key(&home, "user3");
     let fp = key_fingerprint(&key_path);
@@ -82,7 +79,6 @@ fn test_reject_invalid_repo_name() {
 #[test]
 fn test_multiple_users_same_repo() {
     let home = test_home();
-    mgs(&home, &["init"]);
 
     let key_a = generate_key(&home, "user_a");
     let fp_a = key_fingerprint(&key_a);
@@ -132,7 +128,6 @@ fn test_multiple_users_same_repo() {
 #[test]
 fn test_multiple_keys_per_user() {
     let home = test_home();
-    mgs(&home, &["init"]);
 
     // Create user with first key
     let key1 = generate_key(&home, "key1");
