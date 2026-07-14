@@ -5,6 +5,7 @@ use std::path::Path;
 use std::process::Command;
 
 use super::open_db;
+use crate::cli::config::get_config_value;
 use crate::git::{
     check_git_commands, init_bare_repo, normalize_repo_name, repo_disk_path, validate_repo_name,
 };
@@ -94,21 +95,48 @@ pub fn run_repo_remove(data_dir: &Path, name: &str) -> Result<()> {
 /// Links the current git repository to a remote on the MGS server.
 ///
 /// Constructs the remote URL based on transport type and sets it via
-/// `git remote add` or `git remote set-url`.
+/// `git remote add` or `git remote set-url`. Reads `http.host`/`ssh.host`
+/// and `default.user` from config when not provided via flags.
 pub fn run_repo_link(
     data_dir: &Path,
     name: &str,
-    username: &str,
-    host: &str,
+    username: Option<&str>,
+    host: Option<&str>,
     remote_name: &str,
     transport: &str,
 ) -> Result<()> {
     let name = normalize_repo_name(name);
     validate_repo_name(name)?;
+
+    // Resolve host from flag or config
+    let config_host_key = match transport {
+        "http" => "http.host",
+        "ssh" => "ssh.host",
+        _ => anyhow::bail!("unsupported transport '{}', use 'http' or 'ssh'", transport),
+    };
+    let host = match host {
+        Some(h) => h.to_string(),
+        None => get_config_value(data_dir, config_host_key)?.with_context(|| {
+            format!(
+                "no --host and '{}' not configured. Run: mgs config set {} <host:port>",
+                config_host_key, config_host_key
+            )
+        })?,
+    };
+
+    // Resolve username from flag or config
+    let username = match username {
+        Some(u) => u.to_string(),
+        None => get_config_value(data_dir, "default.user")?
+            .with_context(|| {
+                "no --user and 'default.user' not configured. Run: mgs config set default.user <username>"
+            })?,
+    };
+
     let db = open_db(data_dir)?;
 
     let user = db
-        .find_user_by_username(username)?
+        .find_user_by_username(&username)?
         .with_context(|| format!("user '{}' not found", username))?;
 
     db.find_repo(name)?
@@ -123,7 +151,7 @@ pub fn run_repo_link(
             format!("http://{}@{}/{}.git", token, host, name)
         }
         "ssh" => format!("ssh://git@{}/{}.git", host, name),
-        _ => anyhow::bail!("unsupported transport '{}', use 'http' or 'ssh'", transport),
+        _ => unreachable!(),
     };
 
     // Verify current directory is a git repo

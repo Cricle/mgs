@@ -164,7 +164,17 @@ Clone via HTTP: git clone http://a1b2c3d4...@<host>:8080/team/backend.git
 Clone via SSH:  git clone ssh://git@<host>/team/backend.git
 ```
 
-### 3. Configure SSH (for SSH transport)
+### 3. Configure MGS
+
+Set the server address and default user so `mgs repo link` works without flags:
+
+```bash
+mgs config set http.host myserver:8080
+mgs config set ssh.host myserver:22
+mgs config set default.user alice
+```
+
+### 4. Configure SSH (for SSH transport)
 
 Copy the `authorized_keys` line from `mgs user add` output to the server.
 
@@ -197,7 +207,7 @@ icacls "C:\ProgramData\ssh\administrators_authorized_keys" /inheritance:r /grant
 command="C:\path\to\mgs-ssh.exe SHA256:xxxxx",...
 ```
 
-### 4. Start HTTP Server (for HTTP transport)
+### 5. Start HTTP Server (for HTTP transport)
 
 ```bash
 mgs serve --bind 0.0.0.0:8080
@@ -216,7 +226,7 @@ Quick start:
 
 **Windows note:** The HTTP server works identically on Windows. No SSH configuration needed for HTTP transport.
 
-### 5. Use Git
+### 6. Use Git
 
 ```bash
 # Clone via SSH
@@ -228,7 +238,7 @@ git clone http://a1b2c3d4...@myserver:8080/team/backend.git
 # Or link an existing local repo to the server
 cd my-existing-project
 git init
-mgs repo link team/backend --user alice --host myserver:8080
+mgs repo link team/backend
 # → Added remote 'origin' → http://<token>@myserver:8080/team/backend.git
 
 # Push
@@ -287,9 +297,29 @@ mgs repo list
 mgs repo remove <name>
 
 # Link current git repo to a remote (run inside a local git repo)
-mgs repo link <name> --user <username> --host <host:port>
-mgs repo link <name> --user <username> --host <host:port> --transport ssh
-mgs repo link <name> --user <username> --host <host:port> --remote upstream
+mgs repo link <name>
+mgs repo link <name> --transport ssh
+mgs repo link <name> --remote upstream
+mgs repo link <name> --host other:9080  # override config
+```
+
+### `mgs config`
+
+Manage server configuration (stored in `<data_dir>/config`).
+
+```bash
+# Set server address
+mgs config set http.host myserver:8080
+mgs config set ssh.host myserver:22
+
+# Set default user (used by repo link)
+mgs config set default.user alice
+
+# Get a value
+mgs config get http.host
+
+# List all config
+mgs config list
 ```
 
 ### `mgs serve`

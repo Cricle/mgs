@@ -3,6 +3,7 @@
 //! Defines the clap-based command hierarchy and dispatches to subcommand
 //! handlers in [`user`] and [`repo`] modules.
 
+pub mod config;
 pub mod repo;
 pub mod user;
 
@@ -53,6 +54,11 @@ pub enum Command {
         /// Address to bind (default: 0.0.0.0:8080)
         #[arg(long, default_value = "0.0.0.0:8080")]
         bind: String,
+    },
+    /// Manage server configuration
+    Config {
+        #[command(subcommand)]
+        command: ConfigCommand,
     },
 }
 
@@ -124,19 +130,30 @@ pub enum RepoCommand {
     Link {
         /// Repository name
         name: String,
-        /// Username for token lookup
+        /// Username for token lookup (default: config default.user)
         #[arg(long)]
-        user: String,
-        /// Server address (host:port)
+        user: Option<String>,
+        /// Server address override (host:port)
         #[arg(long)]
-        host: String,
+        host: Option<String>,
         /// Remote name
         #[arg(long, default_value = "origin")]
         remote: String,
-        /// Transport: http or ssh
+        /// Transport: http or ssh (default: http)
         #[arg(long, default_value = "http")]
         transport: String,
     },
+}
+
+/// Configuration management subcommands.
+#[derive(Subcommand)]
+pub enum ConfigCommand {
+    /// Set a configuration value
+    Set { key: String, value: String },
+    /// Get a configuration value
+    Get { key: String },
+    /// List all configuration
+    List,
 }
 
 impl Cli {

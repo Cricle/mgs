@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::Parser;
-use mgs::cli::{Cli, Command, KeyCommand, RepoCommand, TokenCommand, UserCommand};
-use mgs::cli::{repo, user};
+use mgs::cli::{Cli, Command, ConfigCommand, KeyCommand, RepoCommand, TokenCommand, UserCommand};
+use mgs::cli::{config, repo, user};
 
 fn main() {
     if let Err(e) = run() {
@@ -43,11 +43,23 @@ fn run() -> Result<()> {
                 host,
                 remote,
                 transport,
-            } => repo::run_repo_link(&data_dir, &name, &user, &host, &remote, &transport),
+            } => repo::run_repo_link(
+                &data_dir,
+                &name,
+                user.as_deref(),
+                host.as_deref(),
+                &remote,
+                &transport,
+            ),
         },
         Command::Serve { bind } => {
             let rt = tokio::runtime::Runtime::new()?;
             rt.block_on(mgs::http::serve(data_dir, &bind))
         }
+        Command::Config { command } => match command {
+            ConfigCommand::Set { key, value } => config::run_config_set(&data_dir, &key, &value),
+            ConfigCommand::Get { key } => config::run_config_get(&data_dir, &key),
+            ConfigCommand::List => config::run_config_list(&data_dir),
+        },
     }
 }
