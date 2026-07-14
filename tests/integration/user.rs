@@ -241,7 +241,7 @@ fn test_token_show() {
 
     // Show token
     let show_out = mgs_cmd(&home, &["user", "token", "show", "showuser"]);
-    assert_eq!(show_out.trim(), expected_token);
+    assert!(show_out.starts_with(expected_token));
 }
 
 #[test]
@@ -279,7 +279,7 @@ fn test_token_regenerate() {
 
     // Verify new token works
     let show_out = mgs_cmd(&home, &["user", "token", "show", "regenuser"]);
-    assert_eq!(show_out.trim(), new_token);
+    assert!(show_out.starts_with(new_token));
 }
 
 #[test]

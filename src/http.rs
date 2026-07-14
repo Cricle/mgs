@@ -240,6 +240,15 @@ pub async fn serve(data_dir: PathBuf, bind: &str) -> Result<()> {
         .with_context(|| format!("failed to bind to {}", bind))?;
 
     println!("mgs HTTP server listening on {}", bind);
+    println!();
+    println!("Quick start:");
+    println!("  1. Create user:  mgs user add <name> --key ~/.ssh/id_ed25519.pub");
+    println!("  2. Create repo:  mgs repo create <name> --owner <name>");
+    println!(
+        "  3. Clone:        git clone http://<token>@{}/<repo>.git",
+        bind
+    );
+    println!();
 
     axum::serve(listener, app).await.context("server error")?;
 

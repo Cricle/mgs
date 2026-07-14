@@ -40,7 +40,19 @@ pub fn run_user_add(data_dir: &Path, username: &str, key_path: &Path) -> Result<
         "Created user '{}' with key fingerprint {}",
         username, fingerprint
     );
+    println!();
     println!("HTTP token: {}", token);
+    println!();
+    println!("Next steps:");
+    println!(
+        "  1. Create a repo:   mgs repo create <name> --owner {}",
+        username
+    );
+    println!(
+        "  2. Clone via HTTP:  git clone http://{}@<host>:8080/<repo>.git",
+        token
+    );
+    println!("  3. Clone via SSH:   git clone ssh://git@<host>/<repo>.git");
     Ok(())
 }
 
@@ -54,7 +66,18 @@ pub fn run_user_list(data_dir: &Path) -> Result<()> {
     }
     for user in &users {
         let keys = db.list_ssh_keys(user.id)?;
-        println!("{} ({} keys)", user.username, keys.len());
+        let token_hint = user.token.as_deref().unwrap_or("none");
+        let short_token = if token_hint.len() > 8 {
+            &token_hint[..8]
+        } else {
+            token_hint
+        };
+        println!(
+            "{} ({} keys, token: {}…)",
+            user.username,
+            keys.len(),
+            short_token
+        );
     }
     Ok(())
 }
@@ -121,7 +144,12 @@ pub fn run_token_show(data_dir: &Path, username: &str) -> Result<()> {
         .with_context(|| format!("user '{}' not found", username))?;
 
     match &user.token {
-        Some(token) => println!("{}", token),
+        Some(token) => {
+            println!("{}", token);
+            println!();
+            println!("Usage:");
+            println!("  git clone http://{}@<host>:8080/<repo>.git", token);
+        }
         None => println!("No token for user '{}'", username),
     }
     Ok(())
@@ -137,5 +165,8 @@ pub fn run_token_regenerate(data_dir: &Path, username: &str) -> Result<()> {
     let new_token = generate_token();
     db.set_user_token(username, &new_token)?;
     println!("New token for '{}': {}", user.username, new_token);
+    println!();
+    println!("Usage:");
+    println!("  git clone http://{}@<host>:8080/<repo>.git", new_token);
     Ok(())
 }

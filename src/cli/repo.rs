@@ -40,6 +40,14 @@ pub fn run_repo_create(data_dir: &Path, name: &str, owner: Option<&str>) -> Resu
     }
 
     println!("Created repository '{}' (owner: {})", name, owner_username);
+    println!();
+    if let Some(token) = &owner.token {
+        println!(
+            "Clone via HTTP: git clone http://{}@<host>:8080/{}.git",
+            token, name
+        );
+    }
+    println!("Clone via SSH:  git clone ssh://git@<host>/{}.git", name);
     Ok(())
 }
 
