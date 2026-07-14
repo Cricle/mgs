@@ -43,6 +43,12 @@ pub fn run_user_add(data_dir: &Path, username: &str, key_path: &Path) -> Result<
     println!();
     println!("HTTP token: {}", token);
     println!();
+    println!("SSH authorized_keys entry (add to ~/.ssh/authorized_keys on server):");
+    println!(
+        "  command=\"mgs-ssh {}\",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty {} {}",
+        fingerprint, key_type, public_key
+    );
+    println!();
     println!("Next steps:");
     println!(
         "  1. Create a repo:   mgs repo create <name> --owner {}",
@@ -104,6 +110,12 @@ pub fn run_key_add(data_dir: &Path, username: &str, key_path: &Path) -> Result<(
 
     db.add_ssh_key(user.id, &key_type, &public_key, &fingerprint)?;
     println!("Added key {} to user '{}'", fingerprint, username);
+    println!();
+    println!("SSH authorized_keys entry:");
+    println!(
+        "  command=\"mgs-ssh {}\",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty {} {}",
+        fingerprint, key_type, public_key
+    );
     Ok(())
 }
 
