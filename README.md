@@ -60,15 +60,43 @@ Default: the directory containing the `mgs` binary (override with `MGS_HOME` env
 ## Prerequisites
 
 - **git** — `git`, `git-upload-pack`, `git-receive-pack` must be in `PATH`
-- **SSH server** — for SSH transport (`sshd` with public key auth enabled)
+- **SSH server** — for SSH transport only (HTTP transport doesn't need SSH)
 - **No other dependencies** — MGS bundles SQLite, no external database needed
 
-Verify prerequisites:
+### Linux / macOS
 
 ```bash
+# Install git (if not already installed)
+sudo apt install git          # Debian/Ubuntu
+sudo yum install git          # CentOS/RHEL
+brew install git              # macOS
+
+# Verify
 git --version
-git-upload-pack --version
-git-receive-pack --version
+which git-upload-pack
+which git-receive-pack
+```
+
+### Windows
+
+```powershell
+# Install Git for Windows (includes git-upload-pack, git-receive-pack)
+# Download from: https://git-scm.com/download/win
+# Or with winget:
+winget install Git.Git
+
+# Verify (in PowerShell or CMD)
+git --version
+where git-upload-pack
+where git-receive-pack
+
+# SSH server (for SSH transport only, HTTP doesn't need it)
+# Windows 10/11 has built-in OpenSSH Server:
+# Settings → Apps → Optional Features → Add "OpenSSH Server"
+# Or:
+Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
+Start-Service sshd
+Set-Service -Name sshd -StartupType Automatic
 ```
 
 ## Installation
@@ -81,7 +109,9 @@ cd mgs
 cargo build --release
 ```
 
-Binaries will be in `target/release/mgs` and `target/release/mgs-ssh`.
+Binaries:
+- Linux/macOS: `target/release/mgs`, `target/release/mgs-ssh`
+- Windows: `target/release/mgs.exe`, `target/release/mgs-ssh.exe`
 
 ### From GitHub Releases
 
@@ -91,64 +121,100 @@ Download the latest binary for your platform from [Releases](https://github.com/
 
 ### 1. Create Users
 
-```bash
-# Add user with their SSH public key
-mgs user add alice --key /home/alice/.ssh/id_ed25519.pub
+**Linux / macOS:**
 
-# Output:
-# Created user 'alice' with key fingerprint SHA256:xxxxx
-#
-# HTTP token: a1b2c3d4e5f6...
-#
-# SSH authorized_keys entry (add to ~/.ssh/authorized_keys on server):
-#   command="mgs-ssh SHA256:xxxxx",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty ssh-ed25519 AAAA...
-#
-# Next steps:
-#   1. Create a repo:   mgs repo create <name> --owner alice
-#   2. Clone via HTTP:  git clone http://a1b2c3d4...@<host>:8080/<repo>.git
-#   3. Clone via SSH:   git clone ssh://git@<host>/<repo>.git
+```bash
+mgs user add alice --key /home/alice/.ssh/id_ed25519.pub
+```
+
+**Windows:**
+
+```powershell
+mgs user add alice --key C:\Users\alice\.ssh\id_ed25519.pub
+```
+
+Output (same on all platforms):
+
+```
+Created user 'alice' with key fingerprint SHA256:xxxxx
+
+HTTP token: a1b2c3d4e5f6...
+
+SSH authorized_keys entry (add to ~/.ssh/authorized_keys on server):
+  command="mgs-ssh SHA256:xxxxx",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty ssh-ed25519 AAAA...
+
+Next steps:
+  1. Create a repo:   mgs repo create <name> --owner alice
+  2. Clone via HTTP:  git clone http://a1b2c3d4...@<host>:8080/<repo>.git
+  3. Clone via SSH:   git clone ssh://git@<host>/<repo>.git
 ```
 
 ### 2. Create Repositories
 
 ```bash
-# Create repo with explicit owner
 mgs repo create team/backend --owner alice
+```
 
-# Output:
-# Created repository 'team/backend' (owner: alice)
-#
-# Clone via HTTP: git clone http://a1b2c3d4...@<host>:8080/team/backend.git
-# Clone via SSH:  git clone ssh://git@<host>/team/backend.git
+Output:
+
+```
+Created repository 'team/backend' (owner: alice)
+
+Clone via HTTP: git clone http://a1b2c3d4...@<host>:8080/team/backend.git
+Clone via SSH:  git clone ssh://git@<host>/team/backend.git
 ```
 
 ### 3. Configure SSH (for SSH transport)
 
-Copy the `authorized_keys` line from `mgs user add` output to `~/.ssh/authorized_keys` on the server.
+Copy the `authorized_keys` line from `mgs user add` output to the server.
 
-Or manually construct it:
+**Linux / macOS:**
 
 ```bash
-# Get the fingerprint
-ssh-keygen -lf /path/to/key.pub
-
-# Add to authorized_keys
+# Append to authorized_keys
 echo 'command="mgs-ssh SHA256:xxxxx",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty ssh-ed25519 AAAA...' >> ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/authorized_keys
+```
+
+**Windows (OpenSSH Server):**
+
+```powershell
+# For admin users, append to:
+# C:\ProgramData\ssh\administrators_authorized_keys
+Add-Content -Path "C:\ProgramData\ssh\administrators_authorized_keys" -Value 'command="mgs-ssh.exe SHA256:xxxxx",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty ssh-ed25519 AAAA...'
+
+# For regular users, append to:
+# C:\Users\<username>\.ssh\authorized_keys
+Add-Content -Path "C:\Users\alice\.ssh\authorized_keys" -Value 'command="mgs-ssh.exe SHA256:xxxxx",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty ssh-ed25519 AAAA...'
+
+# Ensure correct permissions
+icacls "C:\ProgramData\ssh\administrators_authorized_keys" /inheritance:r /grant "SYSTEM:F" /grant "Administrators:F"
+```
+
+**Note:** On Windows, the `command=` must use `mgs-ssh.exe` (with `.exe` extension) and the full path if not in `PATH`:
+
+```
+command="C:\path\to\mgs-ssh.exe SHA256:xxxxx",...
 ```
 
 ### 4. Start HTTP Server (for HTTP transport)
 
 ```bash
 mgs serve --bind 0.0.0.0:8080
-
-# Output:
-# mgs HTTP server listening on 0.0.0.0:8080
-#
-# Quick start:
-#   1. Create user:  mgs user add <name> --key ~/.ssh/id_ed25519.pub
-#   2. Create repo:  mgs repo create <name> --owner <name>
-#   3. Clone:        git clone http://<token>@0.0.0.0:8080/<repo>.git
 ```
+
+Output:
+
+```
+mgs HTTP server listening on 0.0.0.0:8080
+
+Quick start:
+  1. Create user:  mgs user add <name> --key ~/.ssh/id_ed25519.pub
+  2. Create repo:  mgs repo create <name> --owner <name>
+  3. Clone:        git clone http://<token>@0.0.0.0:8080/<repo>.git
+```
+
+**Windows note:** The HTTP server works identically on Windows. No SSH configuration needed for HTTP transport.
 
 ### 5. Use Git
 
@@ -250,9 +316,11 @@ The HTTP server implements the [Git Smart HTTP Protocol](https://git-scm.com/doc
 | GET | `/<repo>/info/refs?service=git-receive-pack` | Advertise refs (push) |
 | POST | `/<repo>/git-receive-pack` | Pack data for push |
 
-### HTTPS
+### HTTPS (Reverse Proxy)
 
-For production, put MGS behind a reverse proxy (nginx, caddy) with TLS:
+For production, put MGS behind a reverse proxy with TLS.
+
+**Linux (nginx):**
 
 ```nginx
 server {
@@ -270,11 +338,55 @@ server {
 }
 ```
 
+**Linux (Caddy):**
+
+```
+git.example.com {
+    reverse_proxy localhost:8080
+}
+```
+
+**Windows (IIS):**
+
+```xml
+<!-- web.config in IIS site root -->
+<configuration>
+  <system.webServer>
+    <rewrite>
+      <rules>
+        <rule name="ReverseProxy" stopProcessing="true">
+          <match url="(.*)" />
+          <action type="Rewrite" url="http://127.0.0.1:8080/{R:1}" />
+        </rule>
+      </rules>
+    </rewrite>
+  </system.webServer>
+</configuration>
+```
+
+Or use [Caddy for Windows](https://caddyserver.com/download) — same config as Linux.
+
 ## Environment Variables
 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `MGS_HOME` | Data directory path | binary directory |
+
+**Linux / macOS:**
+
+```bash
+export MGS_HOME=/var/lib/mgs
+# or
+mgs --data-dir /var/lib/mgs repo list
+```
+
+**Windows:**
+
+```powershell
+$env:MGS_HOME = "C:\ProgramData\mgs"
+# or
+mgs --data-dir C:\ProgramData\mgs repo list
+```
 
 ## Database Schema
 
@@ -329,6 +441,16 @@ cargo test
 # Check formatting and lints
 cargo fmt --check
 cargo clippy -- -D warnings
+```
+
+Cross-compilation for Windows from Linux:
+
+```bash
+# Install target
+rustup target add x86_64-pc-windows-msvc
+
+# Build (requires Windows SDK / MSVC linker)
+cargo build --release --target x86_64-pc-windows-msvc
 ```
 
 ## License
