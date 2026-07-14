@@ -120,6 +120,23 @@ pub enum RepoCommand {
     List,
     /// Remove a repository
     Remove { name: String },
+    /// Link current git repo to a remote
+    Link {
+        /// Repository name
+        name: String,
+        /// Username for token lookup
+        #[arg(long)]
+        user: String,
+        /// Server address (host:port)
+        #[arg(long)]
+        host: String,
+        /// Remote name
+        #[arg(long, default_value = "origin")]
+        remote: String,
+        /// Transport: http or ssh
+        #[arg(long, default_value = "http")]
+        transport: String,
+    },
 }
 
 impl Cli {

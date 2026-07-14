@@ -2,6 +2,7 @@
 
 use anyhow::{Context, Result};
 use std::path::Path;
+use std::process::Command;
 
 use super::open_db;
 use crate::git::{
@@ -87,5 +88,80 @@ pub fn run_repo_remove(data_dir: &Path, name: &str) -> Result<()> {
     } else {
         println!("Repository '{}' not found", name);
     }
+    Ok(())
+}
+
+/// Links the current git repository to a remote on the MGS server.
+///
+/// Constructs the remote URL based on transport type and sets it via
+/// `git remote add` or `git remote set-url`.
+pub fn run_repo_link(
+    data_dir: &Path,
+    name: &str,
+    username: &str,
+    host: &str,
+    remote_name: &str,
+    transport: &str,
+) -> Result<()> {
+    let name = normalize_repo_name(name);
+    validate_repo_name(name)?;
+    let db = open_db(data_dir)?;
+
+    let user = db
+        .find_user_by_username(username)?
+        .with_context(|| format!("user '{}' not found", username))?;
+
+    db.find_repo(name)?
+        .with_context(|| format!("repository '{}' not found", name))?;
+
+    let url = match transport {
+        "http" => {
+            let token = user
+                .token
+                .as_ref()
+                .with_context(|| format!("user '{}' has no HTTP token", username))?;
+            format!("http://{}@{}/{}.git", token, host, name)
+        }
+        "ssh" => format!("ssh://git@{}/{}.git", host, name),
+        _ => anyhow::bail!("unsupported transport '{}', use 'http' or 'ssh'", transport),
+    };
+
+    // Verify current directory is a git repo
+    let output = Command::new("git")
+        .args(["rev-parse", "--git-dir"])
+        .output()
+        .context("failed to run git rev-parse")?;
+    if !output.status.success() {
+        anyhow::bail!("not a git repository (run this command inside a git repo)");
+    }
+
+    // Check if remote already exists
+    let remotes = Command::new("git")
+        .args(["remote"])
+        .output()
+        .context("failed to list git remotes")?;
+    let remotes_str = String::from_utf8_lossy(&remotes.stdout);
+    let remote_exists = remotes_str.split_whitespace().any(|r| r == remote_name);
+
+    if remote_exists {
+        let status = Command::new("git")
+            .args(["remote", "set-url", remote_name, &url])
+            .status()
+            .context("failed to set remote url")?;
+        if !status.success() {
+            anyhow::bail!("git remote set-url failed");
+        }
+        println!("Updated remote '{}' → {}", remote_name, url);
+    } else {
+        let status = Command::new("git")
+            .args(["remote", "add", remote_name, &url])
+            .status()
+            .context("failed to add remote")?;
+        if !status.success() {
+            anyhow::bail!("git remote add failed");
+        }
+        println!("Added remote '{}' → {}", remote_name, url);
+    }
+
     Ok(())
 }

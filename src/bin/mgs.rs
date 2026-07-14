@@ -37,6 +37,13 @@ fn run() -> Result<()> {
             }
             RepoCommand::List => repo::run_repo_list(&data_dir),
             RepoCommand::Remove { name } => repo::run_repo_remove(&data_dir, &name),
+            RepoCommand::Link {
+                name,
+                user,
+                host,
+                remote,
+                transport,
+            } => repo::run_repo_link(&data_dir, &name, &user, &host, &remote, &transport),
         },
         Command::Serve { bind } => {
             let rt = tokio::runtime::Runtime::new()?;

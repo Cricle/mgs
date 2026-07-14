@@ -225,8 +225,13 @@ git clone git@myserver:team/backend.git
 # Clone via HTTP (using token)
 git clone http://a1b2c3d4...@myserver:8080/team/backend.git
 
+# Or link an existing local repo to the server
+cd my-existing-project
+git init
+mgs repo link team/backend --user alice --host myserver:8080
+# → Added remote 'origin' → http://<token>@myserver:8080/team/backend.git
+
 # Push
-cd backend
 echo "hello" > README.md
 git add . && git commit -m "init"
 git push origin main
@@ -280,6 +285,11 @@ mgs repo list
 
 # Remove repository (deletes disk files and DB record)
 mgs repo remove <name>
+
+# Link current git repo to a remote (run inside a local git repo)
+mgs repo link <name> --user <username> --host <host:port>
+mgs repo link <name> --user <username> --host <host:port> --transport ssh
+mgs repo link <name> --user <username> --host <host:port> --remote upstream
 ```
 
 ### `mgs serve`
